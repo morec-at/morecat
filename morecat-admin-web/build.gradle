@@ -1,0 +1,22 @@
+buildscript {
+  repositories.jcenter()
+  dependencies.classpath "io.spring.gradle:dependency-management-plugin:$project.ext.dependencyManagementPluginVersion"
+}
+apply plugin: 'io.spring.dependency-management'
+
+apply plugin: 'war'
+
+dependencyManagement {
+  imports {
+    mavenBom "org.wildfly.bom:jboss-javaee-7.0-with-all:$project.ext.wildflyBomVersion"
+  }
+}
+
+dependencies {
+  providedCompile 'javax.enterprise:cdi-api'
+  providedCompile 'org.jboss.spec.javax.faces:jboss-jsf-api_2.2_spec'
+
+  providedCompile 'org.projectlombok:lombok:1.16.2'
+
+  testCompile "junit:junit:$project.ext.junitVersion"
+}

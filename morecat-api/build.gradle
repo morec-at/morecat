@@ -1,0 +1,47 @@
+buildscript {
+  repositories.jcenter()
+  dependencies.classpath "io.spring.gradle:dependency-management-plugin:$project.ext.dependencyManagementPluginVersion"
+}
+apply plugin: 'io.spring.dependency-management'
+
+apply plugin: 'war'
+
+dependencyManagement {
+  imports {
+    mavenBom "org.wildfly.bom:jboss-javaee-7.0-with-all:$project.ext.wildflyBomVersion"
+  }
+}
+
+configurations {
+  apt.description 'for annotation processors'
+}
+
+dependencies {
+  providedCompile 'javax.enterprise:cdi-api'
+  providedCompile 'org.jboss.resteasy:jaxrs-api'
+  providedCompile 'org.hibernate.javax.persistence:hibernate-jpa-2.1-api'
+  apt 'org.hibernate:hibernate-jpamodelgen'
+  providedCompile 'org.hibernate:hibernate-validator'
+  providedCompile 'org.hibernate:hibernate-validator-annotation-processor'
+
+  providedCompile 'org.projectlombok:lombok:1.16.2'
+
+  testCompile "junit:junit:$project.ext.junitVersion"
+}
+
+def generatedJavaSrcDir = 'build/generated-sources/main/java'
+sourceSets.main.java.srcDirs += [generatedJavaSrcDir]
+
+task procJava(type: JavaCompile, group: 'build', description: 'Annotation processing') {
+  def aptDestDir = new File(project.projectDir, generatedJavaSrcDir)
+  source = project.sourceSets.main.java.srcDirs.findAll {
+    !it.equals(aptDestDir)
+  }
+
+  classpath = project.configurations.compile
+  options.compilerArgs.addAll '-proc:only', '-implicit:none',
+    '-processorpath', project.configurations.apt.asPath
+  destinationDir = aptDestDir
+}
+compileJava.dependsOn procJava
+

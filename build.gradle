@@ -1,0 +1,27 @@
+subprojects {
+
+  version = '1.0.0'
+
+  def defaultEncoding = 'UTF-8'
+  compileJava.options.encoding = defaultEncoding
+  sourceCompatibility = targetCompatibility = 1.8
+
+  apply plugin: 'java'
+  apply plugin: 'findbugs'
+  apply plugin: 'jacoco'
+
+  repositories {
+    jcenter()
+  }
+
+  project.ext {
+    wildflyBomVersion = '8.2.1.Final'
+    dependencyManagementPluginVersion = '0.4.1.RELEASE'
+    junitVersion = '4.12'
+  }
+
+  findbugs {
+    ignoreFailures = true
+  }
+
+}
