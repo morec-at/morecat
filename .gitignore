@@ -39,3 +39,6 @@ hosts
 
 # Keycloak
 src/main/webapp/WEB-INF/keycloak.json
+
+# Docker
+.env

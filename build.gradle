@@ -2,13 +2,13 @@ subprojects {
 
   version = '1.0.0'
 
-  def defaultEncoding = 'UTF-8'
-  compileJava.options.encoding = defaultEncoding
-  sourceCompatibility = targetCompatibility = 1.8
-
   apply plugin: 'java'
   apply plugin: 'findbugs'
   apply plugin: 'jacoco'
+
+  def defaultEncoding = 'UTF-8'
+  compileJava.options.encoding = defaultEncoding
+  sourceCompatibility = targetCompatibility = 1.8
 
   repositories {
     jcenter()
@@ -16,8 +16,11 @@ subprojects {
 
   project.ext {
     wildflyBomVersion = '8.2.1.Final'
-    dependencyManagementPluginVersion = '0.4.1.RELEASE'
+    flywayVersion = '3.2.1'
+
     junitVersion = '4.12'
+
+    dependencyManagementPluginVersion = '0.4.1.RELEASE'
   }
 
   findbugs {

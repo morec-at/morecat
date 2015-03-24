@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<arquillian xmlns="http://jboss.org/schema/arquillian"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://jboss.org/schema/arquillian
+        http://jboss.org/schema/arquillian/arquillian_1_0.xsd">
+
+  <extension qualifier="docker">
+    <property name="serverVersion">1.5.0</property>
+    <property name="serverUri">http://localhost:2375</property>
+    <property name="autoStartContainers">db</property>
+    <property name="dockerContainers">
+      morecat:
+        image: emag/morecat:latest
+        await:
+          strategy: polling
+        links:
+          - db:db
+        env: [DATASOURCE_NAME=morecatDS, DB_NAME=morecat, DB_USER=morecat, WILDFLY_ADMIN_USER=admin, WILDFLY_ADMIN_PASSWORD=Admin#70365]
+        exposedPorts: [8080/tcp, 9990/tcp]
+        portBindings: [8081->8080/tcp, 9991->9990/tcp]
+      db:
+        image: emag/morecat-db:latest
+        await:
+          strategy: polling
+        env: [POSTGRES_USER=morecat, POSTGRES_PASSWORD=morecat]
+        exposedPorts: [5432/tcp]
+        portBindings: [5433->5432/tcp]
+    </property>
+  </extension>
+
+  <container qualifier="morecat" default="true">
+    <configuration>
+      <property name="target">wildfly:8.2.0.Final:remote</property>
+      <property name="managementPort">9991</property>
+      <property name="username">admin</property>
+      <property name="password">Admin#70365</property>
+    </configuration>
+  </container>
+
+</arquillian>
