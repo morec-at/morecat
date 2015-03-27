@@ -41,6 +41,10 @@ public abstract class BaseRepository<T extends BaseEntity> {
     return createQuery(query, getEntityClass()).getResultList();
   }
 
+  protected List<T> getResultList(EntityQuery<T> query, int firstResult, int maxResults) {
+    return createQuery(query, getEntityClass()).setFirstResult(firstResult).setMaxResults(maxResults).getResultList();
+  }
+
   private <R> TypedQuery<R> createQuery(Query<T, R> query, Class<R> resultClass) {
     CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
     CriteriaQuery<R> criteriaQuery = criteriaBuilder.createQuery(resultClass);
@@ -49,9 +53,15 @@ public abstract class BaseRepository<T extends BaseEntity> {
     return em.createQuery(query.execute(criteriaBuilder, criteriaQuery, root));
   }
 
+  public List<T> findAll() {
+    return getResultList((builder, query, root) ->
+        query.select(root)
+    );
+  }
+
   public long count() {
     return this.getSingleResult((builder, query, root) ->
-      query.select(builder.count(root)), Long.class
+        query.select(builder.count(root)), Long.class
     );
   }
 
@@ -67,7 +77,19 @@ public abstract class BaseRepository<T extends BaseEntity> {
 
   @Transactional
   public void delete(Long id) {
-    em.remove(em.find(getEntityClass(), id));
+    delete(em.find(getEntityClass(), id));
+  }
+
+  @Transactional
+  private void delete(T entity) {
+    em.remove(entity);
+  }
+
+  @Transactional
+  public void deleteAll() {
+    for (T entity : findAll()) {
+      delete(entity);
+    }
   }
 
 }
