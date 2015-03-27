@@ -1,7 +1,9 @@
 package morecat.domain.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.NotEmpty;
 
 import javax.persistence.Column;
@@ -16,6 +18,8 @@ import javax.validation.constraints.NotNull;
 @Table(name = "configurations")
 @Data
 @EqualsAndHashCode(callSuper = false)
+@AllArgsConstructor
+@NoArgsConstructor
 public class Configuration extends BaseEntity {
 
   @Column(name = "blog_name", nullable = false)
