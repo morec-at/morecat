@@ -18,10 +18,12 @@ import java.util.List;
  */
 public abstract class BaseRepository<T extends BaseEntity> {
 
+  @FunctionalInterface
   protected interface Query<T, R> {
     CriteriaQuery<R> execute(CriteriaBuilder builder, CriteriaQuery<R> query, Root<T> root);
   }
 
+  @FunctionalInterface
   protected interface EntityQuery<T> extends Query<T, T> {}
 
   @PersistenceContext
