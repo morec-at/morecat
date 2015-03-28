@@ -33,6 +33,7 @@ CREATE TABLE media (
   name VARCHAR(255) NOT NULL,
   uuid VARCHAR(255) NOT NULL,
   author_name INT4 NOT NULL,
+  created_time time NOT NULL,
   PRIMARY KEY (id)
 );
 
