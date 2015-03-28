@@ -24,78 +24,69 @@ public class EntryRepository extends BaseRepository<Entry> {
   }
 
   public Page<Entry> findAllByAdmin(Pageable pageable) {
-    List<Entry> all = getResultList((b, q, entry) -> {
-      return q
-        .select(entry)
-        .orderBy(
-          b.desc(entry.get(Entry_.createdDate)),
-          b.desc(entry.get(Entry_.createdTime)));
-    });
+    List<Entry> all = getResultList((b, q, entry) -> q
+      .select(entry)
+      .orderBy(
+        b.desc(entry.get(Entry_.createdDate)),
+        b.desc(entry.get(Entry_.createdTime))));
 
     return new Page<>(all, count(), pageable);
   }
 
   public Page<Entry> findAllByAuthor(Pageable pageable, String authorName) {
-    List<Entry> authors = getResultList((b, q, entry) -> {
-      return q
-        .select(entry)
-        .where(
-          b.equal(entry.get(Entry_.authorName), authorName))
-        .orderBy(
-          b.desc(entry.get(Entry_.createdDate)),
-          b.desc(entry.get(Entry_.createdTime)));
-    });
+    List<Entry> authors = getResultList((b, q, entry) -> q
+      .select(entry)
+      .where(
+        b.equal(entry.get(Entry_.authorName), authorName))
+      .orderBy(
+        b.desc(entry.get(Entry_.createdDate)),
+        b.desc(entry.get(Entry_.createdTime))));
 
-    Long totalNumberOfAuthors = getSingleResult((b, q, entry) -> {
-      return q
-        .select(b.count(entry))
-        .where(
-          b.equal(entry.get(Entry_.authorName), authorName));
-    }, Long.class);
+    Long totalNumberOfAuthors = getSingleResult((b, q, entry) -> q
+      .select(b.count(entry))
+      .where(
+        b.equal(entry.get(Entry_.authorName), authorName))
+      , Long.class);
 
     return new Page<>(authors, totalNumberOfAuthors, pageable);
   }
 
   public Page<Entry> findPublishedEntries(Pageable pageable) {
-    List<Entry> published = getResultList((b, q, entry) -> {
-      return q
-        .select(entry)
-        .where(
-          b.equal(entry.get(Entry_.state), EntryState.PUBLIC))
-        .orderBy(
-          b.desc(entry.get(Entry_.createdDate)),
-          b.desc(entry.get(Entry_.createdTime)));
-    }, pageable.getPage() * pageable.getSize(), pageable.getSize());
+    List<Entry> published = getResultList((b, q, entry) -> q
+      .select(entry)
+      .where(
+        b.equal(entry.get(Entry_.state), EntryState.PUBLIC))
+      .orderBy(
+        b.desc(entry.get(Entry_.createdDate)),
+        b.desc(entry.get(Entry_.createdTime)))
+      , pageable.getPage() * pageable.getSize(), pageable.getSize());
 
-    Long totalNumberOfPublished = getSingleResult((b, q, entry) -> {
-      return q
-        .select(b.count(entry))
-        .where(
-          b.equal(entry.get(Entry_.state), EntryState.PUBLIC));
-    }, Long.class);
+    Long totalNumberOfPublished = getSingleResult((b, q, entry) -> q
+      .select(b.count(entry))
+      .where(
+        b.equal(entry.get(Entry_.state), EntryState.PUBLIC))
+      , Long.class);
 
     return new Page<>(published, totalNumberOfPublished, pageable);
   }
 
   public Page<Entry> findPublishedEntriesByTag(Pageable pageable, String tag) {
-    List<Entry> publishedByTag = getResultList((b, q, entry) -> {
-      return q
-        .select(entry)
-        .where(
-          b.equal(entry.get(Entry_.state), EntryState.PUBLIC),
-          b.isMember(tag, entry.get(Entry_.tags)))
-        .orderBy(
-          b.desc(entry.get(Entry_.createdDate)),
-          b.desc(entry.get(Entry_.createdTime)));
-    }, pageable.getPage() * pageable.getSize(), pageable.getSize());
+    List<Entry> publishedByTag = getResultList((b, q, entry) -> q
+      .select(entry)
+      .where(
+        b.equal(entry.get(Entry_.state), EntryState.PUBLIC),
+        b.isMember(tag, entry.get(Entry_.tags)))
+      .orderBy(
+        b.desc(entry.get(Entry_.createdDate)),
+        b.desc(entry.get(Entry_.createdTime)))
+      , pageable.getPage() * pageable.getSize(), pageable.getSize());
 
-    Long totalNumberOfPublishedBYTag = getSingleResult((b, q, entry) -> {
-      return q
-        .select(b.count(entry))
-        .where(
-          b.equal(entry.get(Entry_.state), EntryState.PUBLIC),
-          b.isMember(tag, entry.get(Entry_.tags)));
-    }, Long.class);
+    Long totalNumberOfPublishedBYTag = getSingleResult((b, q, entry) -> q
+      .select(b.count(entry))
+      .where(
+        b.equal(entry.get(Entry_.state), EntryState.PUBLIC),
+        b.isMember(tag, entry.get(Entry_.tags)))
+      , Long.class);
 
     return new Page<>(publishedByTag, totalNumberOfPublishedBYTag, pageable);
   }
@@ -112,16 +103,14 @@ public class EntryRepository extends BaseRepository<Entry> {
 
     Entry anEntry = null;
     try {
-      anEntry = getSingleResult((b, q, entry) -> {
-        return q
-          .select(entry)
-          .where(
-            b.equal(entry.get(Entry_.state), EntryState.PUBLIC),
-            b.equal(b.function("year", Integer.class, entry.get(Entry_.createdDate)), year),
-            b.equal(b.function("month", Integer.class, entry.get(Entry_.createdDate)), month),
-            b.equal(b.function("day", Integer.class, entry.get(Entry_.createdDate)), day),
-            b.equal(entry.get(Entry_.permalink), permalink));
-      });
+      anEntry = getSingleResult((b, q, entry) -> q
+        .select(entry)
+        .where(
+          b.equal(entry.get(Entry_.state), EntryState.PUBLIC),
+          b.equal(b.function("year", Integer.class, entry.get(Entry_.createdDate)), year),
+          b.equal(b.function("month", Integer.class, entry.get(Entry_.createdDate)), month),
+          b.equal(b.function("day", Integer.class, entry.get(Entry_.createdDate)), day),
+          b.equal(entry.get(Entry_.permalink), permalink)));
 
       single.setElement(anEntry);
     } catch (NoResultException e) {
@@ -145,15 +134,13 @@ public class EntryRepository extends BaseRepository<Entry> {
   }
 
   private List<Entry> findAllPublished() {
-    return getResultList((b, q, entry) -> {
-      return q
-        .select(entry)
-        .where(
-          b.equal(entry.get(Entry_.state), EntryState.PUBLIC))
-        .orderBy(
-          b.desc(entry.get(Entry_.createdDate)),
-          b.desc(entry.get(Entry_.createdTime)));
-    });
+    return getResultList((b, q, entry) -> q
+      .select(entry)
+      .where(
+        b.equal(entry.get(Entry_.state), EntryState.PUBLIC))
+      .orderBy(
+        b.desc(entry.get(Entry_.createdDate)),
+        b.desc(entry.get(Entry_.createdTime))));
   }
 
   private void setNext(SinglePage<Entry> single, List<Entry> allPublished, int i) {
