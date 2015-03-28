@@ -89,7 +89,7 @@ public abstract class BaseRepository<T extends BaseEntity> {
 
   @Transactional
   public void deleteAll() {
-    findAll().forEach(entity -> delete(entity));
+    findAll().forEach(this::delete);
   }
 
 }
