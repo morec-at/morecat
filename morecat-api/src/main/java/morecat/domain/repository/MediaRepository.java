@@ -25,9 +25,8 @@ public class MediaRepository extends BaseRepository<Media> {
     List<Media> all = getResultList((b, q, media) -> q
         .select(media)
         .orderBy(
-          b.desc(media.get(Media_.createdTime))
-        )
-    );
+          b.desc(media.get(Media_.createdTime)))
+        , pageable.getPage() * pageable.getSize(), pageable.getSize());
     return new Page<>(all, count(), pageable);
   }
 
