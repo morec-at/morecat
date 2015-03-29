@@ -5,6 +5,7 @@ import morecat.domain.Pageable;
 import morecat.domain.model.Media;
 import morecat.domain.model.Media_;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.persistence.NoResultException;
 import java.util.List;
 import java.util.Optional;
@@ -12,6 +13,7 @@ import java.util.Optional;
 /**
  * @author Yoshimasa Tanabe
  */
+@ApplicationScoped
 public class MediaRepository extends BaseRepository<Media> {
 
   @Override
