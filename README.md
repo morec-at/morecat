@@ -22,14 +22,16 @@ Blog APIs &amp; tools
 
 ### Setup Environment
 
-1. Run DB(PostgreSQL)
+#### 1. Run DB(PostgreSQL)
+
 ``` sh
 docker run --name morecat-db \
 -e POSTGRES_USER=morecat -e POSTGRES_PASSWORD=morecat \
 -v /path/to/pgdata/data:/var/lib/postgresql/data \
 -d emag/morecat-db
 ```
-2. Run WildFly & Deploy App
+#### 2. Run WildFly & Deploy App
+
 ``` sh
 docker run --link morecat-db:db \
 -e DATASOURCE_NAME=morecatDS -e DB_NAME=morecat -e DB_USER=morecat \
@@ -73,7 +75,7 @@ For more details, please refer to [the official documentation](http://flywaydb.o
 
 ``` sh
 docker run --link morecat-db:db \
---rm -it postgres \
+--rm -it emag/morecat-db \
 sh -c 'exec psql -h "$DB_PORT_5432_TCP_ADDR" -p "$DB_PORT_5432_TCP_PORT" -U morecat'
 ```
 
