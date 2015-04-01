@@ -1,13 +1,17 @@
 buildscript {
-  repositories.jcenter()
+  repositories {
+    jcenter()
+  }
   dependencies {
     classpath "org.flywaydb:flyway-gradle-plugin:$project.ext.flywayVersion"
     classpath 'org.postgresql:postgresql:9.4-1201-jdbc41'
+    classpath 'com.bluepapa32:gradle-watch-plugin:0.1.5'
   }
 }
 
 apply plugin: 'war'
 apply plugin: 'groovy'
+apply plugin: 'com.bluepapa32.watch'
 
 sourceSets {
   integrationTest {
@@ -107,3 +111,10 @@ flyway {
   password System.properties['database.password']
 }
 
+// watch
+watch {
+  java {
+    files files('src/main/java')
+    tasks 'war'
+  }
+}
