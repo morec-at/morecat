@@ -18,14 +18,15 @@ public class Page<T> {
   private List<T> elements;
   private long totalNumberOfElements;
   private long totalNumberOfPages;
-  private Pageable pageable;
+  private int size;
+  private int page;
   private long currentPageSize;
   private boolean firstPage;
   private boolean lastPage;
 
   public Page(List<T> elements, long totalNumberOfElements, Pageable pageable) {
-    long size = pageable.getSize();
-    long page = pageable.getPage();
+    this.size = pageable.getSize();
+    this.page = pageable.getPage();
 
     this.elements = elements;
     this.totalNumberOfElements = totalNumberOfElements;
@@ -37,7 +38,7 @@ public class Page<T> {
 
   public <R> Page<R> convert(List<R> elements) {
     return new Page<R>(
-      elements, totalNumberOfElements, totalNumberOfPages, pageable, currentPageSize, firstPage, lastPage);
+      elements, totalNumberOfElements, totalNumberOfPages, size, page, currentPageSize, firstPage, lastPage);
   }
 
 }

@@ -18,4 +18,20 @@ public interface MoreCatLogger extends BasicLogger {
   @Message(id = 1, value = "MoreCat %s starting")
   void starting(String version);
 
+  @LogMessage(level = Logger.Level.INFO)
+  @Message(id = 2, value = "Updated entry %d/%d/%d/%s by %s")
+  void updateEntry(int year, int month, int day, String entry, String author);
+
+  @LogMessage(level = Logger.Level.INFO)
+  @Message(id = 3, value = "Deleted entry %d/%d/%d/%s by %s")
+  void deleteEntry(int year, int month, int day, String entry, String author);
+
+  @LogMessage(level = Logger.Level.INFO)
+  @Message(id = 4, value = "Uploaded media %s/%s by %s")
+  void uploadMedia(String uuid, String fileName, String author);
+
+  @LogMessage(level = Logger.Level.INFO)
+  @Message(id = 5, value = "Deleted media %s/%s by %s")
+  void deleteMedia(String uuid, String fileName, String author);
+
 }

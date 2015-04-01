@@ -8,7 +8,7 @@ CREATE TABLE entries (
   permalink varchar(255) NOT NULL,
   state varchar(255) NOT NULL,
   title varchar(255) NOT NULL,
-  author_name int4 NOT NULL,
+  author_name varchar(255) NOT NULL,
   PRIMARY KEY (id)
 );
 
@@ -32,8 +32,8 @@ CREATE TABLE media (
   content OID NOT NULL,
   name VARCHAR(255) NOT NULL,
   uuid VARCHAR(255) NOT NULL,
-  author_name INT4 NOT NULL,
-  created_time time NOT NULL,
+  author_name varchar(255) NOT NULL,
+  created_time timestamp NOT NULL,
   PRIMARY KEY (id)
 );
 
