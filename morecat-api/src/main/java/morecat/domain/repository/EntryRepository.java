@@ -27,6 +27,7 @@ public class EntryRepository extends BaseRepository<Entry> {
     List<Entry> all = getResultList((b, q, entry) -> q
       .select(entry)
       .orderBy(
+        b.desc(entry.get(Entry_.createdDate)),
         b.desc(entry.get(Entry_.createdTime)))
       , pageable.getPage() * pageable.getSize(), pageable.getSize());
 
@@ -39,6 +40,7 @@ public class EntryRepository extends BaseRepository<Entry> {
       .where(
         b.equal(entry.get(Entry_.authorName), authorName))
       .orderBy(
+        b.desc(entry.get(Entry_.createdDate)),
         b.desc(entry.get(Entry_.createdTime)))
       , pageable.getPage() * pageable.getSize(), pageable.getSize());
 
@@ -57,6 +59,7 @@ public class EntryRepository extends BaseRepository<Entry> {
       .where(
         b.equal(entry.get(Entry_.state), EntryState.PUBLIC))
       .orderBy(
+        b.desc(entry.get(Entry_.createdDate)),
         b.desc(entry.get(Entry_.createdTime)))
       , pageable.getPage() * pageable.getSize(), pageable.getSize());
 
@@ -76,6 +79,7 @@ public class EntryRepository extends BaseRepository<Entry> {
         b.equal(entry.get(Entry_.state), EntryState.PUBLIC),
         b.isMember(tag, entry.get(Entry_.tags)))
       .orderBy(
+        b.desc(entry.get(Entry_.createdDate)),
         b.desc(entry.get(Entry_.createdTime)))
       , pageable.getPage() * pageable.getSize(), pageable.getSize());
 
@@ -137,6 +141,7 @@ public class EntryRepository extends BaseRepository<Entry> {
       .where(
         b.equal(entry.get(Entry_.state), EntryState.PUBLIC))
       .orderBy(
+        b.desc(entry.get(Entry_.createdDate)),
         b.desc(entry.get(Entry_.createdTime))));
   }
 
