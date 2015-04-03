@@ -10,6 +10,8 @@ import morecat.domain.service.MediaService;
 
 import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -59,6 +61,11 @@ public class MediaController {
       .build();
   }
 
+  /**
+   * TODO Now a servlet used for upload a media. please check <a href="https://github.com/emag/morecat/issues/5">this issue</a>.
+   *
+   * @see morecat.api.MediaUploader#doPost(HttpServletRequest, HttpServletResponse)
+   */
   @POST
   @Consumes(MediaType.MULTIPART_FORM_DATA)
   public Response upload(@Context UriInfo uriInfo, String request) {
