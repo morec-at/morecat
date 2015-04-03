@@ -37,7 +37,6 @@ ext {
 
 dependencies {
   providedCompile 'javax:javaee-api:7.0'
-  providedCompile "org.jboss.resteasy:resteasy-multipart-provider:$resteasyVersion"
   providedCompile "org.hibernate:hibernate-core:$hibernateVersion"
   apt "org.hibernate:hibernate-jpamodelgen:$hibernateVersion"
   providedCompile "org.hibernate:hibernate-validator:$hibernateValidatorVersion"

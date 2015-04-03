@@ -7,10 +7,8 @@ import morecat.domain.Page;
 import morecat.domain.Pageable;
 import morecat.domain.model.Media;
 import morecat.domain.service.MediaService;
-import org.jboss.resteasy.plugins.providers.multipart.InputPart;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
-import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -26,17 +24,12 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
  * @author Yoshimasa Tanabe
  */
-@ApplicationScoped
+@RequestScoped
 @Path("/media")
 public class MediaController {
 
@@ -68,45 +61,12 @@ public class MediaController {
 
   @POST
   @Consumes(MediaType.MULTIPART_FORM_DATA)
-  public Response upload(@Context UriInfo uriInfo, MultipartFormDataInput input) {
-
-    Map<String, List<InputPart>> uploadForm = input.getFormDataMap();
-
-    if (uploadForm.get("file") == null) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("'file' parameter is required.").build();
-    }
-
-    InputPart file = uploadForm.get("file").get(0);
-
-    Media media = new Media();
-    media.setAuthorName("dummy");
-
-    MultivaluedMap<String, String> headers = file.getHeaders();
-    String fileName = getFileName(headers);
-    media.setName(fileName);
-
-    try (ByteArrayOutputStream bos = new ByteArrayOutputStream()){
-      InputStream is = file.getBody(InputStream.class, null);
-      int length;
-      byte[] buffer = new byte[1024];
-      while ((length = is.read(buffer)) != -1) {
-        bos.write(buffer, 0, length);
-      }
-      media.setContent(bos.toByteArray());
-    } catch (IOException e) {
-      e.printStackTrace();
-      return Response.serverError().entity("upload failed").build();
-    }
-
-    Media uploaded = mediaService.create(media);
-    MoreCatLogger.LOGGER.uploadMedia(uploaded.getUuid(), uploaded.getName(), uploaded.getAuthorName());
+  public Response upload(@Context UriInfo uriInfo, String request) {
 
     return Response
-      .created(uriInfo.getAbsolutePathBuilder()
-        .path(uploaded.getUuid())
-        .path(uploaded.getName())
-        .build())
-      .build();
+        .status(Response.Status.BAD_REQUEST)
+        .entity("This API is now not supported. Please use '/upload' instead.").build();
+
   }
 
   private String getFileName(MultivaluedMap<String, String> header) {
