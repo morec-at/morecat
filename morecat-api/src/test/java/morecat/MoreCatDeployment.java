@@ -14,8 +14,6 @@ public class MoreCatDeployment {
       .create(EmbeddedGradleImporter.class, "test.war")
       .forThisProjectDirectory()
       .importBuildOutput().as(WebArchive.class);
-//      .addAsResource("META-INF/test-persistence.xml", "META-INF/persistence.xml")
-//      .addAsWebInfResource("test-ds.xml", "morecat-ds.xml");
   }
 
 }
