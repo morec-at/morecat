@@ -1,7 +1,9 @@
 package morecat.domain.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import morecat.util.StringUtils;
 import org.hibernate.annotations.Type;
 import org.hibernate.validator.constraints.NotEmpty;
@@ -21,6 +23,8 @@ import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -36,6 +40,8 @@ import java.util.Set;
 )
 @Data
 @EqualsAndHashCode(callSuper = false)
+@AllArgsConstructor
+@NoArgsConstructor
 public class Entry extends BaseEntity {
 
   @Column(nullable = false)
@@ -83,6 +89,15 @@ public class Entry extends BaseEntity {
   @Enumerated(EnumType.STRING)
   private EntryFormat format;
 
+  public Entry(String title, String content, String permalink, String authorName, EntryState state, EntryFormat format) {
+    this.title = title;
+    this.content = content;
+    this.permalink = permalink;
+    this.authorName = authorName;
+    this.state = state;
+    this.format = format;
+  }
+
   @PrePersist
   private void prePersist() {
     setRandomPermalinkIfNotSet();
@@ -97,8 +112,12 @@ public class Entry extends BaseEntity {
 
   private void setRandomPermalinkIfNotSet() {
     if (StringUtils.isBlank(getPermalink())) {
-      // TODO
-//      setPermalink(RandomStringUtils.randomNumeric(10));
+      try {
+        String randomPermalink = String.valueOf(Math.abs(SecureRandom.getInstance("NativePRNGNonBlocking").nextInt()));
+        setPermalink(randomPermalink);
+      } catch (NoSuchAlgorithmException e) {
+        throw new IllegalStateException(e);
+      }
     }
   }
 

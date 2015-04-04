@@ -1,5 +1,6 @@
 package morecat.domain.repository;
 
+import morecat.domain.SiblingEntry;
 import morecat.domain.Page;
 import morecat.domain.Pageable;
 import morecat.domain.SinglePage;
@@ -7,6 +8,7 @@ import morecat.domain.model.Entry;
 import morecat.domain.model.EntryState;
 import morecat.domain.model.Entry_;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.persistence.NoResultException;
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +18,7 @@ import java.util.stream.Collectors;
 /**
  * @author Yoshimasa Tanabe
  */
+@ApplicationScoped
 public class EntryRepository extends BaseRepository<Entry> {
 
   @Override
@@ -100,8 +103,8 @@ public class EntryRepository extends BaseRepository<Entry> {
       .collect(Collectors.toSet());
   }
 
-  public Optional<SinglePage<Entry>> findPublishedSingleEntry(int year, int month, int day, String permalink) {
-    SinglePage<Entry> single = new SinglePage<>();
+  public Optional<SinglePage<Entry, SiblingEntry>> findPublishedSingleEntry(int year, int month, int day, String permalink) {
+    SinglePage<Entry, SiblingEntry> single = new SinglePage<>();
 
     Entry anEntry = null;
     try {
@@ -145,19 +148,21 @@ public class EntryRepository extends BaseRepository<Entry> {
         b.desc(entry.get(Entry_.createdTime))));
   }
 
-  private void setNext(SinglePage<Entry> single, List<Entry> allPublished, int i) {
+  private void setNext(SinglePage<Entry, SiblingEntry> single, List<Entry> allPublished, int i) {
     if (i  > 0) {
-      single.setNext(Optional.of(allPublished.get(i - 1)));
+      Entry next = allPublished.get(i - 1);
+      single.setNext(new SiblingEntry(next.getCreatedDate(), next.getPermalink()));
     } else {
-      single.setNext(Optional.empty()); // most newest entry
+      single.setNext(null); // most newest entry
     }
   }
 
-  private void setPrevious(SinglePage<Entry> single, List<Entry> allPublished, int i) {
+  private void setPrevious(SinglePage<Entry, SiblingEntry> single, List<Entry> allPublished, int i) {
     if (i + 1 < allPublished.size()) {
-      single.setPrevious(Optional.of(allPublished.get(i + 1)));
+      Entry previous = allPublished.get(i + 1);
+      single.setPrevious(new SiblingEntry(previous.getCreatedDate(), previous.getPermalink()));
     } else {
-      single.setPrevious(Optional.empty()); // most oldest entry
+      single.setPrevious(null); // most oldest entry
     }
   }
 

@@ -55,6 +55,10 @@ public abstract class BaseRepository<T extends BaseEntity> {
     return em.createQuery(query.execute(criteriaBuilder, criteriaQuery, root));
   }
 
+  public T find(long id) {
+    return em.find(getEntityClass(), id);
+  }
+
   public List<T> findAll() {
     return getResultList((builder, query, root) ->
         query.select(root)
