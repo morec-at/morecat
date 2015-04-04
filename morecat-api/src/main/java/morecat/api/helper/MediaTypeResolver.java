@@ -15,6 +15,7 @@ public class MediaTypeResolver {
       put("json", "application/json");
       put("xml", "application/xml");
       put("zip", "application/zip");
+      put("pdf", "application/pdf");
       put("gif", "image/gif");
       put("jpeg", "image/jpeg");
       put("jpg", "image/jpeg");
