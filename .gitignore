@@ -25,6 +25,9 @@ Thumbs.db
 # Maven output folder
 target
 
+# Maven git-commit-id-plugin
+morecat-api/src/main/resources/morecat/git.properties
+
 # Gradle
 .gradle
 build

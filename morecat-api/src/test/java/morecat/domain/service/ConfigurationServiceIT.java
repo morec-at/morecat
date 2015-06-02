@@ -5,7 +5,7 @@ import morecat.domain.model.Configuration;
 import morecat.domain.repository.ConfigurationRepository;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
-import org.jboss.shrinkwrap.api.spec.WebArchive;
+import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -19,10 +19,10 @@ import static org.hamcrest.CoreMatchers.*;
 public class ConfigurationServiceIT {
 
   @Deployment
-  public static WebArchive deployment() {
-    WebArchive testWar = MoreCatDeployment.deployment();
-//    System.out.println(testWar.toString(true));
-    return testWar;
+  public static JavaArchive deployment() {
+    JavaArchive testJar = MoreCatDeployment.deployment();
+//    System.out.println(testJar.toString(true));
+    return testJar;
   }
 
   @Inject

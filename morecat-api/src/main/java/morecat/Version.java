@@ -20,10 +20,14 @@ public class Version {
 
     try {
       Properties props = new Properties();
+
       props.load(Version.class.getResourceAsStream("version.properties"));
       versionString = props.getProperty("version");
+
+      props.load(Version.class.getResourceAsStream("git.properties"));
       gitCommitIdString = props.getProperty("git.commit.id");
-      gitCommitIdShortString = props.getProperty("git.commit.id.short");
+      gitCommitIdShortString = props.getProperty("git.commit.id.abbrev");
+
     } catch (IOException e) {
       e.printStackTrace();
     }
