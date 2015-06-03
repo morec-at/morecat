@@ -16,6 +16,11 @@ import org.wildfly.swarm.jaxrs.JAXRSDeployment;
  */
 public class App {
 
+  private static final String DB_HOST = MoreCatConfiguration.getDBHost();
+  private static final String DB_PORT = MoreCatConfiguration.getDBPort();
+  private static final String DB_USER = MoreCatConfiguration.getDBUser();
+  private static final String DB_PASSWORD = MoreCatConfiguration.getDBPassword();
+
   public static void main(String[] args) throws Exception {
     Container container = new Container();
 
@@ -26,8 +31,8 @@ public class App {
             .module("org.postgresql"))
         .datasource(new Datasource("morecatDS")
           .driver("org.postgresql")
-          .connectionURL("jdbc:postgresql://172.17.0.2:5432/morecat")
-          .authentication("morecat", "morecat"))
+          .connectionURL("jdbc:postgresql://" + DB_HOST + ":" + DB_PORT + "/morecat")
+          .authentication(DB_USER, DB_PASSWORD))
     );
 
     container.start();
