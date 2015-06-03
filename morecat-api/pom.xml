@@ -214,9 +214,9 @@
         <configuration>
           <generateGitPropertiesFile>true</generateGitPropertiesFile>
           <generateGitPropertiesFilename>src/main/resources/morecat/git.properties</generateGitPropertiesFilename>
-          <includeOnlyProperties>
-             <includeOnlyProperty>^git.commit.id</includeOnlyProperty>
-          </includeOnlyProperties>
+          <!--<includeOnlyProperties>-->
+             <!--<includeOnlyProperty>^git.commit.id</includeOnlyProperty>-->
+          <!--</includeOnlyProperties>-->
         </configuration>
       </plugin>
     </plugins>
