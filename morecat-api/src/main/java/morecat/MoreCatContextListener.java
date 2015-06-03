@@ -1,7 +1,5 @@
 package morecat;
 
-import org.flywaydb.core.Flyway;
-
 import javax.annotation.Resource;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -25,9 +23,9 @@ public class MoreCatContextListener implements ServletContextListener {
   }
 
   private void migrateDatabase() {
-    Flyway flyway = new Flyway();
-    flyway.setDataSource(ds);
-    flyway.migrate();
+//    Flyway flyway = new Flyway();
+//    flyway.setDataSource(ds);
+//    flyway.migrate();
   }
 
   @Override
