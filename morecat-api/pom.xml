@@ -203,7 +203,7 @@
       <plugin>
         <groupId>pl.project13.maven</groupId>
         <artifactId>git-commit-id-plugin</artifactId>
-        <version>2.1.13</version>
+        <version>2.1.15</version>
         <executions>
           <execution>
             <goals>
@@ -214,9 +214,9 @@
         <configuration>
           <generateGitPropertiesFile>true</generateGitPropertiesFile>
           <generateGitPropertiesFilename>src/main/resources/morecat/git.properties</generateGitPropertiesFilename>
-          <!--<includeOnlyProperties>-->
-             <!--<includeOnlyProperty>^git.commit.id</includeOnlyProperty>-->
-          <!--</includeOnlyProperties>-->
+          <includeOnlyProperties>
+             <includeOnlyProperty>^git.commit.id</includeOnlyProperty>
+          </includeOnlyProperties>
         </configuration>
       </plugin>
     </plugins>
