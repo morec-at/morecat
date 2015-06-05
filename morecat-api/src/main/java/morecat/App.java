@@ -52,6 +52,10 @@ public class App {
       new ClassLoaderAsset("morecat/version.properties", App.class.getClassLoader()), "classes/morecat/version.properties");
     jaxRsDeployment.getArchive().addAsWebInfResource(
       new ClassLoaderAsset("morecat/git.properties", App.class.getClassLoader()), "classes/morecat/git.properties");
+    jaxRsDeployment.getArchive().addAsWebInfResource(
+      new ClassLoaderAsset("db/migration/V1__create_schema.sql", App.class.getClassLoader()), "classes/db/migration/V1__create_schema.sql");
+    jaxRsDeployment.getArchive().addAsWebInfResource(
+      new ClassLoaderAsset("db/migration/V1.1__import_initial_data.sql", App.class.getClassLoader()), "classes/db/migration/V1.1__import_initial_data.sql");
 
     container.deploy(jaxRsDeployment);
   }
