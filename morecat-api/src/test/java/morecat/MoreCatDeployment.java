@@ -13,7 +13,7 @@ public class MoreCatDeployment {
   public static JavaArchive deployment() {
     return ShrinkWrap.createFromZipFile(
       JavaArchive.class,
-      new File("target/morecat-api-1.0.0-swarm.jar")
+      new File("target/morecat-api-swarm.jar")
     );
   }
 
