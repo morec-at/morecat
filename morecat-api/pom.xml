@@ -57,6 +57,12 @@
       <groupId>org.wildfly.swarm</groupId>
       <artifactId>wildfly-swarm-weld-jaxrs</artifactId>
       <version>${version.wildfly.swarm}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jboss-jaxrs-api_2.0_spec</artifactId>
+          <groupId>org.jboss.spec.javax.ws.rs</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
@@ -65,6 +71,12 @@
     </dependency>
 
     <!-- java ee specs -->
+    <dependency>
+      <groupId>javax.ws.rs</groupId>
+      <artifactId>javax.ws.rs-api</artifactId>
+      <version>2.0</version>
+      <scope>provided</scope>
+    </dependency>
     <dependency>
       <groupId>org.hibernate</groupId>
       <artifactId>hibernate-core</artifactId>
