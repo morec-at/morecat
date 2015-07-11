@@ -24,10 +24,28 @@
 
   <build>
     <finalName>${project.artifactId}</finalName>
+
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.wildfly.swarm</groupId>
+          <artifactId>wildfly-swarm-plugin</artifactId>
+          <version>${version.wildfly.swarm}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>package</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
   </build>
 
   <modules>
     <module>morecat-api</module>
+    <module>morecat-admin-web</module>
   </modules>
 
 </project>
