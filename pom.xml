@@ -18,6 +18,8 @@
 
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
+
+    <version.wildfly.swarm>1.0.0.Alpha4-SNAPSHOT</version.wildfly.swarm>
   </properties>
 
   <build>
