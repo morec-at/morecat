@@ -19,8 +19,6 @@
 
   <properties>
     <version.butterfaces>1.8.5</version.butterfaces>
-
-    <version.maven-war-plugin>2.6</version.maven-war-plugin>
   </properties>
 
   <dependencies>
@@ -47,14 +45,6 @@
 
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-war-plugin</artifactId>
-        <version>${version.maven-war-plugin}</version>
-        <configuration>
-          <packagingExcludes>WEB-INF/lib/wildfly-swarm-*.jar</packagingExcludes>
-        </configuration>
-      </plugin>
       <plugin>
         <groupId>org.wildfly.swarm</groupId>
         <artifactId>wildfly-swarm-plugin</artifactId>
