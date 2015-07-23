@@ -18,7 +18,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <version.butterfaces>1.8.5</version.butterfaces>
+    <version.butterfaces>1.8.7.1</version.butterfaces>
   </properties>
 
   <dependencies>
