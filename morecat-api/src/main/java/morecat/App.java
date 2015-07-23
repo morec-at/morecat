@@ -4,12 +4,13 @@ import morecat.api.ConfigurationController;
 import morecat.api.EntryController;
 import morecat.api.MediaController;
 import morecat.api.VersionController;
+import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.ClassLoaderAsset;
 import org.wildfly.swarm.container.Container;
 import org.wildfly.swarm.datasources.Datasource;
 import org.wildfly.swarm.datasources.DatasourcesFraction;
 import org.wildfly.swarm.datasources.Driver;
-import org.wildfly.swarm.jaxrs.JAXRSDeployment;
+import org.wildfly.swarm.jaxrs.JAXRSArchive;
 
 /**
  * @author Yoshimasa Tanabe
@@ -37,26 +38,26 @@ public class App {
 
     container.start();
 
-    JAXRSDeployment jaxRsDeployment = new JAXRSDeployment(container);
+    JAXRSArchive deployment = ShrinkWrap.create(JAXRSArchive.class);
 
-    jaxRsDeployment.addResource(ConfigurationController.class);
-    jaxRsDeployment.addResource(EntryController.class);
-    jaxRsDeployment.addResource(MediaController.class);
-    jaxRsDeployment.addResource(VersionController.class);
+    deployment.addResource(ConfigurationController.class);
+    deployment.addResource(EntryController.class);
+    deployment.addResource(MediaController.class);
+    deployment.addResource(VersionController.class);
 
-    jaxRsDeployment.getArchive().addPackages(true, "morecat");
+    deployment.addPackages(true, "morecat");
 
-    jaxRsDeployment.getArchive().addAsWebInfResource(
+    deployment.addAsWebInfResource(
       new ClassLoaderAsset("META-INF/persistence.xml", App.class.getClassLoader()), "classes/META-INF/persistence.xml");
-    jaxRsDeployment.getArchive().addAsWebInfResource(
+    deployment.addAsWebInfResource(
       new ClassLoaderAsset("morecat/version.properties", App.class.getClassLoader()), "classes/morecat/version.properties");
-    jaxRsDeployment.getArchive().addAsWebInfResource(
+    deployment.addAsWebInfResource(
       new ClassLoaderAsset("morecat/git.properties", App.class.getClassLoader()), "classes/morecat/git.properties");
-    jaxRsDeployment.getArchive().addAsWebInfResource(
+    deployment.addAsWebInfResource(
       new ClassLoaderAsset("db/migration/V1__create_schema.sql", App.class.getClassLoader()), "classes/db/migration/V1__create_schema.sql");
-    jaxRsDeployment.getArchive().addAsWebInfResource(
+    deployment.addAsWebInfResource(
       new ClassLoaderAsset("db/migration/V1.1__import_initial_data.sql", App.class.getClassLoader()), "classes/db/migration/V1.1__import_initial_data.sql");
 
-    container.deploy(jaxRsDeployment);
+    container.deploy(deployment);
   }
 }
