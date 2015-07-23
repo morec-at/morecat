@@ -58,6 +58,8 @@ public class App {
     deployment.addAsWebInfResource(
       new ClassLoaderAsset("db/migration/V1.1__import_initial_data.sql", App.class.getClassLoader()), "classes/db/migration/V1.1__import_initial_data.sql");
 
+    deployment.addAllDependencies();
+
     container.deploy(deployment);
   }
 }
