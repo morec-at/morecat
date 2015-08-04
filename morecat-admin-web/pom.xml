@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <artifactId>morecat</artifactId>
+    <groupId>morecat</groupId>
+    <version>1.0.0</version>
+  </parent>
+
+  <artifactId>morecat-admin-web</artifactId>
+
+  <name>MoreCat: Admin Web</name>
+  <description>MoreCat: Admin Web</description>
+
+  <packaging>jar</packaging>
+
+  <properties>
+    <version.butterfaces>1.8.7.1</version.butterfaces>
+  </properties>
+
+  <dependencies>
+    <!-- wildfly-swarm -->
+    <dependency>
+      <groupId>org.wildfly.swarm</groupId>
+      <artifactId>wildfly-swarm-jsf</artifactId>
+      <version>${version.wildfly.swarm}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.swarm</groupId>
+      <artifactId>wildfly-swarm-weld</artifactId>
+      <version>${version.wildfly.swarm}</version>
+    </dependency>
+
+    <!-- misc. -->
+    <dependency>
+      <groupId>de.larmic.butterfaces</groupId>
+      <artifactId>components-mojarra</artifactId>
+      <version>${version.butterfaces}</version>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.wildfly.swarm</groupId>
+        <artifactId>wildfly-swarm-plugin</artifactId>
+        <configuration>
+          <mainClass>morecat.admin.web.App</mainClass>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>package</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

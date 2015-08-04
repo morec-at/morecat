@@ -1,3 +1,0 @@
-rootProject.name = 'morecat'
-
-include 'morecat-api', 'morecat-admin-web'

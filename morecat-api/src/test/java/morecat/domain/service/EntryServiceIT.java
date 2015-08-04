@@ -1,9 +1,9 @@
 package morecat.domain.service;
 
 import morecat.MoreCatDeployment;
-import morecat.domain.SiblingEntry;
 import morecat.domain.Page;
 import morecat.domain.Pageable;
+import morecat.domain.SiblingEntry;
 import morecat.domain.SinglePage;
 import morecat.domain.model.Entry;
 import morecat.domain.model.EntryFormat;
@@ -12,7 +12,7 @@ import morecat.domain.repository.EntryRepository;
 import morecat.util.StringUtils;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
-import org.jboss.shrinkwrap.api.spec.WebArchive;
+import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,7 +33,7 @@ import static org.hamcrest.CoreMatchers.*;
  */
 public class EntryServiceIT {
 
-  private static WebArchive deploymentEntryServiceIT() {
+  private static JavaArchive deploymentEntryServiceIT() {
     return MoreCatDeployment.deployment().addClass(EntryServiceIT.class);
   }
 
@@ -41,7 +41,7 @@ public class EntryServiceIT {
   @RunWith(Arquillian.class)
   public static class should_set_random_permalink {
     @Deployment
-    public static WebArchive deployment() {
+    public static JavaArchive deployment() {
       return deploymentEntryServiceIT();
     }
 
@@ -65,7 +65,7 @@ public class EntryServiceIT {
   public static class populate_entries_draft_1_public_1 {
 
     @Deployment
-    public static WebArchive deployment() {
+    public static JavaArchive deployment() {
       return deploymentEntryServiceIT();
     }
 
@@ -112,7 +112,7 @@ public class EntryServiceIT {
   public static class pagination_entries_draft_1_public_5 {
 
     @Deployment
-    public static WebArchive deployment() {
+    public static JavaArchive deployment() {
       return deploymentEntryServiceIT();
     }
 
@@ -170,7 +170,7 @@ public class EntryServiceIT {
   public static class populate_tags_draft_1_public_2 {
 
     @Deployment
-    public static WebArchive deployment() {
+    public static JavaArchive deployment() {
       return deploymentEntryServiceIT();
     }
 
@@ -209,11 +209,11 @@ public class EntryServiceIT {
 
       entries.forEach(entryRepository::save);
     }
-    
+
     @Test
     public void should_populate_published_tags() throws Exception {
       Set<String> allPublishedTags = sut.findAllPublishedTags();
-      
+
       Assert.assertThat(allPublishedTags.size(), is(3));
       Assert.assertThat(allPublishedTags.contains("tag4"), is(false));
     }
@@ -222,7 +222,7 @@ public class EntryServiceIT {
   @RunWith(Arquillian.class)
   public static class pagination_tags_draft_1_public_2 {
     @Deployment
-    public static WebArchive deployment() {
+    public static JavaArchive deployment() {
       return deploymentEntryServiceIT();
     }
 
@@ -303,7 +303,7 @@ public class EntryServiceIT {
   public static class check_single_entry_draft_1_public_3 {
 
     @Deployment
-    public static WebArchive deployment() {
+    public static JavaArchive deployment() {
       return deploymentEntryServiceIT();
     }
 
