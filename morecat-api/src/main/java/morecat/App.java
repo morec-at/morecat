@@ -6,10 +6,10 @@ import morecat.api.MediaController;
 import morecat.api.VersionController;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.ClassLoaderAsset;
+import org.wildfly.swarm.config.datasources.DataSource;
 import org.wildfly.swarm.container.Container;
-import org.wildfly.swarm.datasources.Datasource;
 import org.wildfly.swarm.datasources.DatasourcesFraction;
-import org.wildfly.swarm.datasources.Driver;
+import org.wildfly.swarm.datasources.JdbcDriver;
 import org.wildfly.swarm.jaxrs.JAXRSArchive;
 
 /**
@@ -25,15 +25,16 @@ public class App {
   public static void main(String[] args) throws Exception {
     Container container = new Container();
 
-    container.subsystem(new DatasourcesFraction()
-        .driver(
-          new Driver("org.postgresql")
-            .xaDatasourceClassName("org.postgresql.xa.PGXADataSource")
-            .module("org.postgresql"))
-        .datasource(new Datasource("morecatDS")
-          .driver("org.postgresql")
-          .connectionURL("jdbc:postgresql://" + DB_HOST + ":" + DB_PORT + "/morecat")
-          .authentication(DB_USER, DB_PASSWORD))
+    container.fraction(new DatasourcesFraction()
+        .jdbcDriver(new JdbcDriver("org.postgresql")
+          .driverName("org.postgresql")
+          .xaDatasourceClass("org.postgresql.xa.PGXADataSource")
+          .driverModuleName("org.postgresql"))
+        .dataSource(new DataSource("morecatDS")
+          .driverName("org.postgresql")
+          .connectionUrl("jdbc:postgresql://" + DB_HOST + ":" + DB_PORT + "/morecat")
+          .userName(DB_USER)
+          .password(DB_PASSWORD))
     );
 
     container.start();
