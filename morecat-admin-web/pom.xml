@@ -5,9 +5,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <artifactId>morecat</artifactId>
     <groupId>morecat</groupId>
-    <version>1.0.0</version>
+    <artifactId>morecat-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>morecat-admin-web</artifactId>
