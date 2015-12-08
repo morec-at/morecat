@@ -20,7 +20,18 @@
     <maven.compiler.target>1.8</maven.compiler.target>
 
     <version.wildfly.swarm>1.0.0.Alpha6-SNAPSHOT</version.wildfly.swarm>
+    <version.junit>4.12</version.junit>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>4.12</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <build>
     <finalName>${project.artifactId}</finalName>

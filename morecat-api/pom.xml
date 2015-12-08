@@ -17,38 +17,20 @@
   <packaging>jar</packaging>
 
   <properties>
-    <version.wildfly.bom>9.0.0.Beta2</version.wildfly.bom>
-
+    <version.hibernate>5.0.1.Final</version.hibernate>
     <version.postgresql>9.4-1201-jdbc41</version.postgresql>
+    <version.lombok>1.16.4</version.lombok>
+    <version.jboss-logging-processor>2.0.1.Final</version.jboss-logging-processor>
+    <version.flyway>3.2.1</version.flyway>
 
-    <version.arquillian.core>1.1.8.Final</version.arquillian.core>
-    <version.arquillian.cube>1.0.0.Alpha6</version.arquillian.cube>
+    <version.arquillian>1.1.8.Final</version.arquillian>
+    <version.spock>1.0-groovy-2.4</version.spock>
+    <version.resteasy>3.0.13.Final</version.resteasy>
+
+    <version.gmavenplus-plugin>1.5</version.gmavenplus-plugin>
+    <version.maven-failsafe-plugin>2.19</version.maven-failsafe-plugin>
+    <version.git-commit-id-plugin>2.1.15</version.git-commit-id-plugin>
   </properties>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.wildfly.bom</groupId>
-        <artifactId>jboss-javaee-7.0-with-all</artifactId>
-        <version>${version.wildfly.bom}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.jboss.arquillian</groupId>
-        <artifactId>arquillian-bom</artifactId>
-        <version>${version.arquillian.core}</version>
-        <scope>import</scope>
-        <type>pom</type>
-      </dependency>
-      <dependency>
-        <groupId>org.arquillian.cube</groupId>
-        <artifactId>arquillian-cube-containerless</artifactId>
-        <version>${version.arquillian.cube}</version>
-        <scope>test</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <dependencies>
     <!-- wildfly-swarm -->
@@ -68,15 +50,17 @@
       <version>${version.wildfly.swarm}</version>
     </dependency>
 
-    <!-- java ee specs -->
+    <!-- java ee implementation -->
     <dependency>
       <groupId>org.hibernate</groupId>
       <artifactId>hibernate-core</artifactId>
+      <version>${version.hibernate}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.hibernate</groupId>
       <artifactId>hibernate-jpamodelgen</artifactId>
+      <version>${version.hibernate}</version>
       <scope>provided</scope>
     </dependency>
 
@@ -89,47 +73,54 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.16.4</version>
+      <version>${version.lombok}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.jboss.logging</groupId>
       <artifactId>jboss-logging-processor</artifactId>
+      <version>${version.jboss-logging-processor}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-core</artifactId>
-      <version>3.2.1</version>
+      <version>${version.flyway}</version>
     </dependency>
 
     <!-- test -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.12</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.swarm</groupId>
+      <artifactId>wildfly-swarm-arquillian</artifactId>
+      <version>${version.wildfly.swarm}</version>
     </dependency>
     <dependency>
       <groupId>org.jboss.arquillian.junit</groupId>
       <artifactId>arquillian-junit-container</artifactId>
+      <version>${version.arquillian}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.arquillian.cube</groupId>
-      <artifactId>arquillian-cube-containerless</artifactId>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-client</artifactId>
+      <version>${version.resteasy}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.jboss.shrinkwrap.resolver</groupId>
-      <artifactId>shrinkwrap-resolver-depchain</artifactId>
-      <type>pom</type>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-jackson2-provider</artifactId>
+      <version>${version.resteasy}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.spockframework</groupId>
       <artifactId>spock-core</artifactId>
-      <version>1.0-groovy-2.4</version>
+      <version>${version.spock}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -141,32 +132,8 @@
         <filtering>true</filtering>
       </resource>
     </resources>
+
     <plugins>
-      <plugin>
-        <groupId>org.codehaus.gmavenplus</groupId>
-        <artifactId>gmavenplus-plugin</artifactId>
-        <version>1.4</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>compile</goal>
-              <goal>testCompile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <version>2.18.1</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>org.wildfly.swarm</groupId>
         <artifactId>wildfly-swarm-plugin</artifactId>
@@ -181,10 +148,36 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.gmavenplus</groupId>
+        <artifactId>gmavenplus-plugin</artifactId>
+        <version>${version.gmavenplus-plugin}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>testCompile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>${version.maven-failsafe-plugin}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>pl.project13.maven</groupId>
         <artifactId>git-commit-id-plugin</artifactId>
-        <version>2.1.15</version>
+        <version>${version.git-commit-id-plugin}</version>
         <executions>
           <execution>
             <goals>
@@ -202,4 +195,5 @@
       </plugin>
     </plugins>
   </build>
+
 </project>
