@@ -37,8 +37,8 @@ public class MoreCatConfiguration {
   public static String getDBUser() {
     String dbUser = "";
 
-    if (System.getenv("DB_USER") != null) {
-      dbUser = System.getenv("DB_USER");
+    if (System.getenv("DB_ENV_POSTGRES_USER") != null) {
+      dbUser = System.getenv("DB_ENV_POSTGRES_USER");
     }
     if (System.getProperty("morecat.db.user") != null) {
       dbUser = System.getProperty("morecat.db.user");

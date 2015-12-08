@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -30,6 +31,7 @@
     <version.gmavenplus-plugin>1.5</version.gmavenplus-plugin>
     <version.maven-failsafe-plugin>2.19</version.maven-failsafe-plugin>
     <version.git-commit-id-plugin>2.1.15</version.git-commit-id-plugin>
+    <version.docker-maven-plugin>0.13.6</version.docker-maven-plugin>
   </properties>
 
   <dependencies>
@@ -189,10 +191,57 @@
           <generateGitPropertiesFile>true</generateGitPropertiesFile>
           <generateGitPropertiesFilename>src/main/resources/morecat/git.properties</generateGitPropertiesFilename>
           <includeOnlyProperties>
-             <includeOnlyProperty>^git.commit.id</includeOnlyProperty>
+            <includeOnlyProperty>^git.commit.id</includeOnlyProperty>
           </includeOnlyProperties>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.jolokia</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
+        <version>${version.docker-maven-plugin}</version>
+        <configuration>
+          <images>
+            <image>
+              <name>emag/morecat</name>
+              <alias>morecat</alias>
+              <build>
+                <from>jboss/base-jdk:8</from>
+                <maintainer>emag</maintainer>
+                <tags>
+                  <tag>latest</tag>
+                  <tag>${project.version}</tag>
+                </tags>
+                <ports>
+                  <port>8080</port>
+                </ports>
+                <entryPoint>
+                  <exec>
+                    <arg>java</arg>
+                    <arg>-jar</arg>
+                    <arg>/opt/morecat-api-swarm.jar</arg>
+                  </exec>
+                </entryPoint>
+                <assembly>
+                  <user>jboss:jboss:jboss</user>
+                  <basedir>/opt</basedir>
+                  <inline>
+                    <dependencySets>
+                      <dependencySet>
+                        <useProjectAttachments>true</useProjectAttachments>
+                        <includes>
+                          <include>morecat:morecat-api:jar:swarm</include>
+                        </includes>
+                        <outputFileNameMapping>morecat-api-swarm.jar</outputFileNameMapping>
+                      </dependencySet>
+                    </dependencySets>
+                  </inline>
+                </assembly>
+              </build>
+            </image>
+          </images>
+        </configuration>
+      </plugin>
+
     </plugins>
   </build>
 
