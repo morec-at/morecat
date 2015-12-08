@@ -5,24 +5,31 @@ import morecat.domain.model.Configuration;
 import morecat.domain.repository.ConfigurationRepository;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
-import org.jboss.shrinkwrap.api.spec.JavaArchive;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.wildfly.swarm.ContainerFactory;
+import org.wildfly.swarm.container.Container;
+import org.wildfly.swarm.datasources.DatasourcesFraction;
+import org.wildfly.swarm.jaxrs.JAXRSArchive;
+import org.wildfly.swarm.jpa.JPAFraction;
 
 import javax.inject.Inject;
 
 import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.*;
 
 @RunWith(Arquillian.class)
-public class ConfigurationServiceIT {
+public class ConfigurationServiceIT implements ContainerFactory {
 
   @Deployment
-  public static JavaArchive deployment() {
-    JavaArchive testJar = MoreCatDeployment.deployment();
-//    System.out.println(testJar.toString(true));
-    return testJar;
+  public static JAXRSArchive deployment() throws Exception {
+    return MoreCatDeployment.deployment();
+  }
+
+  @Override
+  public Container newContainer(String... args) throws Exception {
+    return newContainer();
   }
 
   @Inject
@@ -44,10 +51,10 @@ public class ConfigurationServiceIT {
     // Exercise
     Configuration configuration = sut.find();
     // Verify
-    Assert.assertThat(configuration, is(notNullValue()));
-    Assert.assertThat(configuration.getBlogName(), is("default_name"));
-    Assert.assertThat(configuration.getBlogDescription(), is("default_description"));
-    Assert.assertThat(configuration.isPublicity(), is(false));
+    assertThat(configuration, is(notNullValue()));
+    assertThat(configuration.getBlogName(), is("default_name"));
+    assertThat(configuration.getBlogDescription(), is("default_description"));
+    assertThat(configuration.isPublicity(), is(false));
   }
 
   @Test
@@ -61,9 +68,35 @@ public class ConfigurationServiceIT {
     sut.update(configuration);
     // Verify
     Configuration updated = sut.find();
-    Assert.assertThat(updated, is(notNullValue()));
-    Assert.assertThat(updated.getBlogName(), is("another_name"));
-    Assert.assertThat(updated.getBlogDescription(), is("another_description"));
-    Assert.assertThat(updated.isPublicity(), is(true));
+    assertThat(updated, is(notNullValue()));
+    assertThat(updated.getBlogName(), is("another_name"));
+    assertThat(updated.getBlogDescription(), is("another_description"));
+    assertThat(updated.isPublicity(), is(true));
   }
+
+  private Container newContainer() throws Exception {
+    Container container = new Container();
+
+    container.fraction(new DatasourcesFraction()
+      .jdbcDriver("org.postgresql", (d) -> {
+        d.driverDatasourceClassName("org.postgresql.Driver");
+        d.xaDatasourceClass("org.postgresql.xa.PGXADataSource");
+        d.driverModuleName("org.postgresql");
+      })
+      .dataSource("morecatDS", (ds) -> {
+        ds.driverName("org.postgresql");
+        ds.connectionUrl("jdbc:postgresql://localhost:5432/morecat");
+        ds.userName("morecat");
+        ds.password("morecat");
+      })
+    );
+
+    container.fraction(new JPAFraction()
+      .inhibitDefaultDatasource()
+      .defaultDatasource("jboss/datasources/morecatDS")
+    );
+
+    return container;
+  }
+
 }

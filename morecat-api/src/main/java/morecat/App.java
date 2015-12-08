@@ -9,6 +9,7 @@ import org.jboss.shrinkwrap.api.asset.ClassLoaderAsset;
 import org.wildfly.swarm.container.Container;
 import org.wildfly.swarm.datasources.DatasourcesFraction;
 import org.wildfly.swarm.jaxrs.JAXRSArchive;
+import org.wildfly.swarm.jpa.JPAFraction;
 
 /**
  * @author Yoshimasa Tanabe
@@ -37,30 +38,14 @@ public class App {
       })
     );
 
-    container.start();
+    container.fraction(new JPAFraction()
+      .inhibitDefaultDatasource()
+      .defaultDatasource("jboss/datasources/morecatDS")
+    );
 
-    JAXRSArchive deployment = ShrinkWrap.create(JAXRSArchive.class);
+    container
+      .start()
+      .deploy(MoreCatDeployment.deployment());
 
-    deployment.addResource(ConfigurationController.class);
-    deployment.addResource(EntryController.class);
-    deployment.addResource(MediaController.class);
-    deployment.addResource(VersionController.class);
-
-    deployment.addPackages(true, "morecat");
-
-    deployment.addAsWebInfResource(
-      new ClassLoaderAsset("META-INF/persistence.xml", App.class.getClassLoader()), "classes/META-INF/persistence.xml");
-    deployment.addAsWebInfResource(
-      new ClassLoaderAsset("morecat/version.properties", App.class.getClassLoader()), "classes/morecat/version.properties");
-    deployment.addAsWebInfResource(
-      new ClassLoaderAsset("morecat/git.properties", App.class.getClassLoader()), "classes/morecat/git.properties");
-    deployment.addAsWebInfResource(
-      new ClassLoaderAsset("db/migration/V1__create_schema.sql", App.class.getClassLoader()), "classes/db/migration/V1__create_schema.sql");
-    deployment.addAsWebInfResource(
-      new ClassLoaderAsset("db/migration/V1.1__import_initial_data.sql", App.class.getClassLoader()), "classes/db/migration/V1.1__import_initial_data.sql");
-
-    deployment.addAllDependencies();
-
-    container.deploy(deployment);
   }
 }

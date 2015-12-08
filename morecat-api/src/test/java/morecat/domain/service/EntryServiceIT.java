@@ -12,11 +12,15 @@ import morecat.domain.repository.EntryRepository;
 import morecat.util.StringUtils;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
-import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.wildfly.swarm.ContainerFactory;
+import org.wildfly.swarm.container.Container;
+import org.wildfly.swarm.datasources.DatasourcesFraction;
+import org.wildfly.swarm.jaxrs.JAXRSArchive;
+import org.wildfly.swarm.jpa.JPAFraction;
 
 import javax.inject.Inject;
 import java.time.LocalDate;
@@ -27,21 +31,26 @@ import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.assertThat;
 
 /**
  * @author Yoshimasa Tanabe
  */
-public class EntryServiceIT {
+public class EntryServiceIT implements ContainerFactory {
 
-  private static JavaArchive deploymentEntryServiceIT() {
+  private static JAXRSArchive deploymentEntryServiceIT() throws Exception {
     return MoreCatDeployment.deployment().addClass(EntryServiceIT.class);
   }
 
+  @Override
+  public Container newContainer(String... args) throws Exception {
+    return newContainer();
+  }
 
   @RunWith(Arquillian.class)
   public static class should_set_random_permalink {
     @Deployment
-    public static JavaArchive deployment() {
+    public static JAXRSArchive deployment() throws Exception {
       return deploymentEntryServiceIT();
     }
 
@@ -51,13 +60,13 @@ public class EntryServiceIT {
     @Test
     public void blank_permalink() throws Exception {
       Entry created = sut.save(new Entry("title", "content", /* blank permalink */ "", "author", EntryState.PUBLIC, EntryFormat.MARKDOWN));
-      Assert.assertThat(StringUtils.isBlank(created.getPermalink()), is(false));
+      assertThat(StringUtils.isBlank(created.getPermalink()), is(false));
     }
 
     @Test
     public void null_permalink() throws Exception {
       Entry created = sut.save(new Entry("title", "content", /* null permalink */ null, "author", EntryState.PUBLIC, EntryFormat.MARKDOWN));
-      Assert.assertThat(StringUtils.isBlank(created.getPermalink()), is(false));
+      assertThat(StringUtils.isBlank(created.getPermalink()), is(false));
     }
   }
 
@@ -65,7 +74,7 @@ public class EntryServiceIT {
   public static class populate_entries_draft_1_public_1 {
 
     @Deployment
-    public static JavaArchive deployment() {
+    public static JAXRSArchive deployment() throws Exception {
       return deploymentEntryServiceIT();
     }
 
@@ -92,19 +101,19 @@ public class EntryServiceIT {
     @Test
     public void should_collect_all_entries() throws Exception {
       Page<Entry> allEntries = sut.findAllByAdmin(new Pageable(2, 0));
-      Assert.assertThat(allEntries.getElements().size(), is(2));
+      assertThat(allEntries.getElements().size(), is(2));
     }
 
     @Test
     public void should_collect_all_entries_by_a_author() throws Exception {
       Page<Entry> allEntries = sut.findAllByAuthor(new Pageable(2, 0), "author1");
-      Assert.assertThat(allEntries.getElements().size(), is(1));
+      assertThat(allEntries.getElements().size(), is(1));
     }
 
     @Test
     public void should_collect_published_entries() throws Exception {
       Page<Entry> publishedEntries = sut.findPublishedEntries(new Pageable(2, 0));
-      Assert.assertThat(publishedEntries.getElements().size(), is(1));
+      assertThat(publishedEntries.getElements().size(), is(1));
     }
   }
 
@@ -112,7 +121,7 @@ public class EntryServiceIT {
   public static class pagination_entries_draft_1_public_5 {
 
     @Deployment
-    public static JavaArchive deployment() {
+    public static JAXRSArchive deployment() throws Exception {
       return deploymentEntryServiceIT();
     }
 
@@ -148,20 +157,20 @@ public class EntryServiceIT {
     public void pagination_published_size_3_page_0_total_6() throws Exception {
       Page<Entry> publishedEntries = sut.findPublishedEntries(new Pageable(3, 0));
 
-      Assert.assertThat(publishedEntries.isFirstPage(), is(true));
-      Assert.assertThat(publishedEntries.isLastPage(), is(false));
-      Assert.assertThat(publishedEntries.getTotalNumberOfPages(), is(2L));
-      Assert.assertThat(publishedEntries.getCurrentPageSize(), is(3L));
+      assertThat(publishedEntries.isFirstPage(), is(true));
+      assertThat(publishedEntries.isLastPage(), is(false));
+      assertThat(publishedEntries.getTotalNumberOfPages(), is(2L));
+      assertThat(publishedEntries.getCurrentPageSize(), is(3L));
     }
 
     @Test
     public void pagination_published_size_3_page_1_total_6() throws Exception {
       Page<Entry> publishedEntries = sut.findPublishedEntries(new Pageable(3, 1));
 
-      Assert.assertThat(publishedEntries.isFirstPage(), is(false));
-      Assert.assertThat(publishedEntries.isLastPage(), is(true));
-      Assert.assertThat(publishedEntries.getTotalNumberOfPages(), is(2L));
-      Assert.assertThat(publishedEntries.getCurrentPageSize(), is(2L)); // 1 draft
+      assertThat(publishedEntries.isFirstPage(), is(false));
+      assertThat(publishedEntries.isLastPage(), is(true));
+      assertThat(publishedEntries.getTotalNumberOfPages(), is(2L));
+      assertThat(publishedEntries.getCurrentPageSize(), is(2L)); // 1 draft
     }
 
   }
@@ -170,7 +179,7 @@ public class EntryServiceIT {
   public static class populate_tags_draft_1_public_2 {
 
     @Deployment
-    public static JavaArchive deployment() {
+    public static JAXRSArchive deployment() throws Exception {
       return deploymentEntryServiceIT();
     }
 
@@ -214,15 +223,15 @@ public class EntryServiceIT {
     public void should_populate_published_tags() throws Exception {
       Set<String> allPublishedTags = sut.findAllPublishedTags();
 
-      Assert.assertThat(allPublishedTags.size(), is(3));
-      Assert.assertThat(allPublishedTags.contains("tag4"), is(false));
+      assertThat(allPublishedTags.size(), is(3));
+      assertThat(allPublishedTags.contains("tag4"), is(false));
     }
   }
 
   @RunWith(Arquillian.class)
   public static class pagination_tags_draft_1_public_2 {
     @Deployment
-    public static JavaArchive deployment() {
+    public static JAXRSArchive deployment() throws Exception {
       return deploymentEntryServiceIT();
     }
 
@@ -282,20 +291,20 @@ public class EntryServiceIT {
     public void pagination_published_size_3_page_0_total_6() throws Exception {
       Page<Entry> publishedEntries = sut.findPublishedEntriesByTag(new Pageable(3, 0), "tag1");
 
-      Assert.assertThat(publishedEntries.isFirstPage(), is(true));
-      Assert.assertThat(publishedEntries.isLastPage(), is(false));
-      Assert.assertThat(publishedEntries.getTotalNumberOfPages(), is(2L));
-      Assert.assertThat(publishedEntries.getCurrentPageSize(), is(3L));
+      assertThat(publishedEntries.isFirstPage(), is(true));
+      assertThat(publishedEntries.isLastPage(), is(false));
+      assertThat(publishedEntries.getTotalNumberOfPages(), is(2L));
+      assertThat(publishedEntries.getCurrentPageSize(), is(3L));
     }
 
     @Test
     public void pagination_published_size_3_page_1_total_6() throws Exception {
       Page<Entry> publishedEntries = sut.findPublishedEntriesByTag(new Pageable(3, 1), "tag1");
 
-      Assert.assertThat(publishedEntries.isFirstPage(), is(false));
-      Assert.assertThat(publishedEntries.isLastPage(), is(true));
-      Assert.assertThat(publishedEntries.getTotalNumberOfPages(), is(2L));
-      Assert.assertThat(publishedEntries.getCurrentPageSize(), is(2L)); // 1 draft
+      assertThat(publishedEntries.isFirstPage(), is(false));
+      assertThat(publishedEntries.isLastPage(), is(true));
+      assertThat(publishedEntries.getTotalNumberOfPages(), is(2L));
+      assertThat(publishedEntries.getCurrentPageSize(), is(2L)); // 1 draft
     }
   }
 
@@ -303,7 +312,7 @@ public class EntryServiceIT {
   public static class check_single_entry_draft_1_public_3 {
 
     @Deployment
-    public static JavaArchive deployment() {
+    public static JAXRSArchive deployment() throws Exception {
       return deploymentEntryServiceIT();
     }
 
@@ -343,29 +352,54 @@ public class EntryServiceIT {
     public void should_have_only_next() throws Exception {
       SinglePage<Entry, SiblingEntry> permalink6 = sut.findPublishedSingleEntry(2015, 4, 1, "permalink1").get();
 
-      Assert.assertThat(permalink6.getNext(), is(notNullValue()));
-      Assert.assertThat(permalink6.getNext().getPermalink(), is("permalink2"));
-      Assert.assertThat(permalink6.getPrevious(), is(nullValue()));
+      assertThat(permalink6.getNext(), is(notNullValue()));
+      assertThat(permalink6.getNext().getPermalink(), is("permalink2"));
+      assertThat(permalink6.getPrevious(), is(nullValue()));
     }
 
     @Test
     public void should_have_only_previous() throws Exception {
       SinglePage<Entry, SiblingEntry> permalink4 = sut.findPublishedSingleEntry(2015, 4, 4, "permalink4").get();
 
-      Assert.assertThat(permalink4.getNext(), is(nullValue()));
-      Assert.assertThat(permalink4.getPrevious(), is(notNullValue()));
-      Assert.assertThat(permalink4.getPrevious().getPermalink(), is("permalink2")); // permalink3 is draft
+      assertThat(permalink4.getNext(), is(nullValue()));
+      assertThat(permalink4.getPrevious(), is(notNullValue()));
+      assertThat(permalink4.getPrevious().getPermalink(), is("permalink2")); // permalink3 is draft
     }
 
     @Test
     public void should_have_previous_and_next() throws Exception {
       SinglePage<Entry, SiblingEntry> permalink2 = sut.findPublishedSingleEntry(2015, 4, 2, "permalink2").get();
 
-      Assert.assertThat(permalink2.getNext(), is(notNullValue()));
-      Assert.assertThat(permalink2.getNext().getPermalink(), is("permalink4")); // permalink3 is draft
-      Assert.assertThat(permalink2.getPrevious(), is(notNullValue()));
-      Assert.assertThat(permalink2.getPrevious().getPermalink(), is("permalink1"));
+      assertThat(permalink2.getNext(), is(notNullValue()));
+      assertThat(permalink2.getNext().getPermalink(), is("permalink4")); // permalink3 is draft
+      assertThat(permalink2.getPrevious(), is(notNullValue()));
+      assertThat(permalink2.getPrevious().getPermalink(), is("permalink1"));
     }
+  }
+
+  private Container newContainer() throws Exception {
+    Container container = new Container();
+
+    container.fraction(new DatasourcesFraction()
+      .jdbcDriver("org.postgresql", (d) -> {
+        d.driverDatasourceClassName("org.postgresql.Driver");
+        d.xaDatasourceClass("org.postgresql.xa.PGXADataSource");
+        d.driverModuleName("org.postgresql");
+      })
+      .dataSource("morecatDS", (ds) -> {
+        ds.driverName("org.postgresql");
+        ds.connectionUrl("jdbc:postgresql://localhost:5432/morecat");
+        ds.userName("morecat");
+        ds.password("morecat");
+      })
+    );
+
+    container.fraction(new JPAFraction()
+      .inhibitDefaultDatasource()
+      .defaultDatasource("jboss/datasources/morecatDS")
+    );
+
+    return container;
   }
 
 }
