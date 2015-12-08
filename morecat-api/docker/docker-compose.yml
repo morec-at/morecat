@@ -1,0 +1,22 @@
+db:
+  image: emag/morecat-db
+  environment:
+    POSTGRES_USER: morecat
+  env_file:
+    - .env
+  volumes:
+    - /dbfp/pgdata/data:/var/lib/postgresql/data
+morecat:
+  image: emag/morecat
+  links:
+    - db:db
+  environment:
+    DATASOURCE_NAME: morecatDS
+    DB_NAME: morecat
+    DB_USER: morecat
+    STAGE: PRODUCTION
+  env_file:
+    - .env
+  ports:
+    - 8080:8080
+    - 9990:9990

@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://xmlns.jcp.org/jsf/facelets"
+      xmlns:h="http://xmlns.jcp.org/jsf/html"
+      xmlns:b="http://butterfaces.larmic.de/components">
+
+<h:head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>
+    <ui:insert name="title">Default title</ui:insert>
+  </title>
+  <style>
+    body {
+      padding-top: 70px;
+    }
+  </style>
+</h:head>
+
+<h:body>
+
+<!-- navigation bar -->
+<div class="navbar navbar-inverse navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">MoreCat Admin Web</a>
+    </div>
+    <div class="collapse navbar-collapse">
+      <ul class="nav navbar-nav pull-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+            <span class="glyphicon glyphicon-user"></span> Welcome, John Doe<b class="caret"></b>
+          </a>
+          <ul class="dropdown-menu">
+            <li><a href="#users/update"><span class="glyphicon glyphicon-edit"></span> Edit Profile</a></li>
+            <li><a href="#logout"><span class="glyphicon glyphicon-log-out"></span> Logout</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- content -->
+<div class="container">
+
+  <div class="row">
+
+    <div class="col col-sm-3">
+      <ul id="nav-tab" class="nav nav-pills nav-stacked">
+        <li class="active"><h:link outcome="/index"><span class="glyphicon glyphicon-home"></span> Overview</h:link></li>
+        <li><h:link outcome="/entries/list"><span class="glyphicon glyphicon-pencil"></span> Entries</h:link></li>
+        <li><a href="#media"><span class="glyphicon glyphicon-picture"></span> Media</a></li>
+        <li><a href="#configurations"><span class="glyphicon glyphicon-wrench"></span> Configurations</a></li>
+        <li><a href="#keycloak"><span class="glyphicon glyphicon-user"></span> Keycloak</a></li>
+      </ul>
+    </div>
+
+    <div class="col col-sm-9">
+      <ui:insert name="content">Default content</ui:insert>
+    </div>
+
+  </div>
+</div>
+
+</h:body>
+
+</html>

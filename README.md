@@ -1,9 +1,3 @@
-# morecat
+# MoreCat
 
-Blog APIs &amp; tools
-
-## APIs
-
-## Deployment
-
-## Development
+Blog APIs and tools

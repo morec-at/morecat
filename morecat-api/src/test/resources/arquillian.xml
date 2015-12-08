@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<arquillian xmlns="http://jboss.org/schema/arquillian"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://jboss.org/schema/arquillian
+        http://jboss.org/schema/arquillian/arquillian_1_0.xsd">
+
+  <extension qualifier="docker">
+    <property name="autoStartContainers">db</property>
+    <property name="dockerContainers">
+      morecat-api:
+        buildImage:
+          dockerfileLocation: src/test/resources/swarm
+          noCache: false
+          remove: true
+        await:
+          strategy: polling
+        portBindings: [8080/tcp]
+      db:
+        image: emag/morecat-db:latest
+        await:
+          strategy: polling
+        env: [POSTGRES_USER=morecat, POSTGRES_PASSWORD=morecat]
+        exposedPorts: [5432/tcp]
+        portBindings: [5433->5432/tcp]
+    </property>
+  </extension>
+
+  <container qualifier="containerless" default="true">
+    <configuration>
+      <property name="containerlessDocker">morecat-api</property>
+      <property name="embeddedPort">8080</property>
+    </configuration>
+  </container>
+
+</arquillian>
