@@ -1,5 +1,6 @@
 package morecat.domain.service;
 
+import morecat.MoreCatContainer;
 import morecat.MoreCatDeployment;
 import morecat.domain.model.Configuration;
 import morecat.domain.repository.ConfigurationRepository;
@@ -10,9 +11,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.wildfly.swarm.ContainerFactory;
 import org.wildfly.swarm.container.Container;
-import org.wildfly.swarm.datasources.DatasourcesFraction;
 import org.wildfly.swarm.jaxrs.JAXRSArchive;
-import org.wildfly.swarm.jpa.JPAFraction;
 
 import javax.inject.Inject;
 
@@ -29,7 +28,7 @@ public class ConfigurationServiceIT implements ContainerFactory {
 
   @Override
   public Container newContainer(String... args) throws Exception {
-    return newContainer();
+    return MoreCatContainer.newContainer();
   }
 
   @Inject
@@ -72,31 +71,6 @@ public class ConfigurationServiceIT implements ContainerFactory {
     assertThat(updated.getBlogName(), is("another_name"));
     assertThat(updated.getBlogDescription(), is("another_description"));
     assertThat(updated.isPublicity(), is(true));
-  }
-
-  private Container newContainer() throws Exception {
-    Container container = new Container();
-
-    container.fraction(new DatasourcesFraction()
-      .jdbcDriver("org.postgresql", (d) -> {
-        d.driverDatasourceClassName("org.postgresql.Driver");
-        d.xaDatasourceClass("org.postgresql.xa.PGXADataSource");
-        d.driverModuleName("org.postgresql");
-      })
-      .dataSource("morecatDS", (ds) -> {
-        ds.driverName("org.postgresql");
-        ds.connectionUrl("jdbc:postgresql://localhost:5432/morecat");
-        ds.userName("morecat");
-        ds.password("morecat");
-      })
-    );
-
-    container.fraction(new JPAFraction()
-      .inhibitDefaultDatasource()
-      .defaultDatasource("jboss/datasources/morecatDS")
-    );
-
-    return container;
   }
 
 }

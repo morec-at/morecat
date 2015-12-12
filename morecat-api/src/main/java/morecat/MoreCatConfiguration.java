@@ -13,8 +13,8 @@ public class MoreCatConfiguration {
     if (System.getenv("DB_PORT_5432_TCP_ADDR") != null) {
       dbHost = System.getenv("DB_PORT_5432_TCP_ADDR");
     }
-    if (System.getProperty("morecat.db.host") != null) {
-      dbHost = System.getProperty("morecat.db.host");
+    if (System.getProperty("swarm.morecat.db.host") != null) {
+      dbHost = System.getProperty("swarm.morecat.db.host");
     }
 
     return dbHost;
@@ -26,8 +26,8 @@ public class MoreCatConfiguration {
     if (System.getenv("DB_PORT_5432_TCP_PORT") != null) {
       dbPort = System.getenv("DB_PORT_5432_TCP_PORT");
     }
-    if (System.getProperty("morecat.db.port") != null) {
-      dbPort = System.getProperty("morecat.db.port");
+    if (System.getProperty("swarm.morecat.db.port") != null) {
+      dbPort = System.getProperty("swarm.morecat.db.port");
     }
 
     return dbPort;
@@ -40,8 +40,8 @@ public class MoreCatConfiguration {
     if (System.getenv("DB_ENV_POSTGRES_USER") != null) {
       dbUser = System.getenv("DB_ENV_POSTGRES_USER");
     }
-    if (System.getProperty("morecat.db.user") != null) {
-      dbUser = System.getProperty("morecat.db.user");
+    if (System.getProperty("swarm.morecat.db.user") != null) {
+      dbUser = System.getProperty("swarm.morecat.db.user");
     }
 
     return dbUser;
@@ -53,8 +53,8 @@ public class MoreCatConfiguration {
     if (System.getenv("DB_ENV_POSTGRES_PASSWORD") != null) {
       dbPassword = System.getenv("DB_ENV_POSTGRES_PASSWORD");
     }
-    if (System.getProperty("morecat.db.password") != null) {
-      dbPassword = System.getProperty("morecat.db.password");
+    if (System.getProperty("swarm.morecat.db.password") != null) {
+      dbPassword = System.getProperty("swarm.morecat.db.password");
     }
 
     return dbPassword;

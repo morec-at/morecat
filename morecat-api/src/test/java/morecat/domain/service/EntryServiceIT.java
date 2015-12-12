@@ -1,5 +1,6 @@
 package morecat.domain.service;
 
+import morecat.MoreCatContainer;
 import morecat.MoreCatDeployment;
 import morecat.domain.Page;
 import morecat.domain.Pageable;
@@ -12,15 +13,12 @@ import morecat.domain.repository.EntryRepository;
 import morecat.util.StringUtils;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.wildfly.swarm.ContainerFactory;
 import org.wildfly.swarm.container.Container;
-import org.wildfly.swarm.datasources.DatasourcesFraction;
 import org.wildfly.swarm.jaxrs.JAXRSArchive;
-import org.wildfly.swarm.jpa.JPAFraction;
 
 import javax.inject.Inject;
 import java.time.LocalDate;
@@ -31,7 +29,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 
 /**
  * @author Yoshimasa Tanabe
@@ -44,7 +42,7 @@ public class EntryServiceIT implements ContainerFactory {
 
   @Override
   public Container newContainer(String... args) throws Exception {
-    return newContainer();
+    return MoreCatContainer.newContainer();
   }
 
   @RunWith(Arquillian.class)
@@ -375,31 +373,6 @@ public class EntryServiceIT implements ContainerFactory {
       assertThat(permalink2.getPrevious(), is(notNullValue()));
       assertThat(permalink2.getPrevious().getPermalink(), is("permalink1"));
     }
-  }
-
-  private Container newContainer() throws Exception {
-    Container container = new Container();
-
-    container.fraction(new DatasourcesFraction()
-      .jdbcDriver("org.postgresql", (d) -> {
-        d.driverDatasourceClassName("org.postgresql.Driver");
-        d.xaDatasourceClass("org.postgresql.xa.PGXADataSource");
-        d.driverModuleName("org.postgresql");
-      })
-      .dataSource("morecatDS", (ds) -> {
-        ds.driverName("org.postgresql");
-        ds.connectionUrl("jdbc:postgresql://localhost:5432/morecat");
-        ds.userName("morecat");
-        ds.password("morecat");
-      })
-    );
-
-    container.fraction(new JPAFraction()
-      .inhibitDefaultDatasource()
-      .defaultDatasource("jboss/datasources/morecatDS")
-    );
-
-    return container;
   }
 
 }
