@@ -7,7 +7,11 @@ public class MoreCatConfiguration {
 
   private MoreCatConfiguration() {}
 
-  public static String getDBHost() {
+  public static String getDBUrl() {
+    return getDBHost() + ":" + getDBPort();
+  }
+
+  private static String getDBHost() {
     String dbHost = "localhost";
 
     if (System.getenv("DB_PORT_5432_TCP_ADDR") != null) {
@@ -20,7 +24,7 @@ public class MoreCatConfiguration {
     return dbHost;
   }
 
-  public static String getDBPort() {
+  private static String getDBPort() {
     String dbPort = "5432";
 
     if (System.getenv("DB_PORT_5432_TCP_PORT") != null) {
