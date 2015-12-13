@@ -9,8 +9,7 @@ import org.wildfly.swarm.jpa.JPAFraction;
  */
 public class MoreCatContainer {
 
-  private static final String DB_HOST = MoreCatConfiguration.getDBHost();
-  private static final String DB_PORT = MoreCatConfiguration.getDBPort();
+  private static final String DB_URL = MoreCatConfiguration.getDBUrl();
   private static final String DB_USER = MoreCatConfiguration.getDBUser();
   private static final String DB_PASSWORD = MoreCatConfiguration.getDBPassword();
 
@@ -25,7 +24,7 @@ public class MoreCatContainer {
       })
       .dataSource("morecatDS", (ds) -> {
         ds.driverName("org.postgresql");
-        ds.connectionUrl("jdbc:postgresql://" + DB_HOST + ":" + DB_PORT + "/morecat");
+        ds.connectionUrl("jdbc:postgresql://" + DB_URL + "/morecat");
         ds.userName(DB_USER);
         ds.password(DB_PASSWORD);
       })
