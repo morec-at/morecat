@@ -1,4 +1,4 @@
-package morecat.api;
+package morecat.api.public_;
 
 import morecat.domain.model.Configuration;
 import morecat.domain.service.ConfigurationService;

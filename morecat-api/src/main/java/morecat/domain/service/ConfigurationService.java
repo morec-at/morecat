@@ -21,8 +21,8 @@ public class ConfigurationService {
   }
 
   @Transactional
-  public void update(Configuration configuration) {
-    configurationRepository.save(configuration);
+  public Configuration save(Configuration configuration) {
+    return configurationRepository.save(configuration);
   }
 
 }

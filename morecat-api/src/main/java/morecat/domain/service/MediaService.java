@@ -26,7 +26,7 @@ public class MediaService {
     return mediaRepository.find(uuid, fileName);
   }
 
-  public Media create(Media media) {
+  public Media save(Media media) {
     Media registered = mediaRepository.save(media);
     return registered;
   }

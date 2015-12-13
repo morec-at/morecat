@@ -1,9 +1,5 @@
 package morecat;
 
-import morecat.api.ConfigurationController;
-import morecat.api.EntryController;
-import morecat.api.MediaController;
-import morecat.api.VersionController;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.ClassLoaderAsset;
 import org.wildfly.swarm.jaxrs.JAXRSArchive;
@@ -16,12 +12,7 @@ public class MoreCatDeployment {
   public static JAXRSArchive deployment() throws Exception {
     JAXRSArchive deployment = ShrinkWrap.create(JAXRSArchive.class);
 
-    deployment.addResource(ConfigurationController.class);
-    deployment.addResource(EntryController.class);
-    deployment.addResource(MediaController.class);
-    deployment.addResource(VersionController.class);
-
-    deployment.addPackages(true, "morecat");
+    deployment.addPackages(true, App.class.getPackage());
 
     deployment.addAsWebInfResource(
       new ClassLoaderAsset("META-INF/persistence.xml", App.class.getClassLoader()), "classes/META-INF/persistence.xml");
