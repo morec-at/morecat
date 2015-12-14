@@ -41,7 +41,7 @@ $ curl -X DELETE  localhost:8080/entries/1 -v
 
 ### Media
 
-#### GET all 
+#### GET all(pageable)
 
 ``` sh
 $ curl -X GET http://localhost:8080/media
@@ -57,10 +57,14 @@ $ curl -X GET http://localhost:8080/media/:uuid/:filename
 
 #### POST
 
+``` sh
+$ curl -X POST -F 'file=@some-media.jpg' http://localhost:8080/admin/media
+```
+
 #### DELETE
 
 ``` sh
-$ curl -X DELETE http://localhost:8080/media/:uuid/:filename
+$ curl -X DELETE http://localhost:8080/admin/media/:uuid/:filename
 ```
 
 ### Configuration
