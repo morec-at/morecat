@@ -64,7 +64,7 @@ public class ConfigurationServiceIT implements ContainerFactory {
     configuration.setBlogDescription("another_description");
     configuration.setPublicity(true);
     // Exercise
-    sut.update(configuration);
+    sut.save(configuration);
     // Verify
     Configuration updated = sut.find();
     assertThat(updated, is(notNullValue()));

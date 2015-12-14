@@ -1,5 +1,6 @@
 package morecat;
 
+import morecat.domain.model.Configuration;
 import org.jboss.logging.BasicLogger;
 import org.jboss.logging.Logger;
 import org.jboss.logging.annotations.LogMessage;
@@ -33,5 +34,9 @@ public interface MoreCatLogger extends BasicLogger {
   @LogMessage(level = Logger.Level.INFO)
   @Message(id = 5, value = "Deleted media %s/%s by %s")
   void deleteMedia(String uuid, String fileName, String author);
+
+  @LogMessage(level = Logger.Level.INFO)
+  @Message(id = 6, value = "Updated configuration to %s by %s")
+  void updateConfiguration(Configuration updated, String admin);
 
 }

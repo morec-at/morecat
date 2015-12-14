@@ -53,7 +53,7 @@ public class MediaUploader extends HttpServlet {
       throw new RuntimeException(e);
     }
 
-    Media uploaded = mediaService.create(media);
+    Media uploaded = mediaService.save(media);
     MoreCatLogger.LOGGER.uploadMedia(uploaded.getUuid(), uploaded.getName(), uploaded.getAuthorName());
 
     response.setStatus(HttpServletResponse.SC_CREATED);

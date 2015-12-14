@@ -4,6 +4,79 @@
 
 // TODO Swagger
 
+### Entry(Public)
+
+#### GET all published
+
+``` sh
+curl localhost:8080/entries/2015/12/14/permalink1
+```
+
+#### GET an entry
+
+``` sh
+curl localhost:8080/entries/2015/12/14/permalink1 
+```
+
+### Entry(Admin)
+
+#### GET
+
+#### POST
+
+``` sh
+$ curl -X POST -H "Content-Type: application/json" -d '{"title":"title1", "permalink":"permalink1", "content":"content1","state":"PUBLIC", "format":"MARKDOWN"}' localhost:8080/admin/entries -v
+```
+#### PUT
+
+``` sh
+$ curl -X PUT -H "Content-Type: application/json" -d '{"title":"updated-title", "content":"updated-content", "permalink":"updated-permalink", "state":"PUBLIC", "format":"HTML"}'  localhost:8080/admin/entries/1 -v
+```
+
+#### DELETE
+
+``` sh
+$ curl -X DELETE  localhost:8080/entries/1 -v
+```
+
+### Media
+
+#### GET all 
+
+``` sh
+$ curl -X GET http://localhost:8080/media
+```
+
+#### GET
+
+``` sh
+$ curl -X GET http://localhost:8080/media/:uuid/:filename
+```
+
+### Media(Admin)
+
+#### POST
+
+#### DELETE
+
+``` sh
+$ curl -X DELETE http://localhost:8080/media/:uuid/:filename
+```
+
+### Configuration
+
+#### GET
+
+``` sh
+$ curl -X GET localhost:8080/configurations
+```
+
+#### PUT
+
+``` sh
+$ curl -X PUT -H "Content-Type: application/json" -d '{"blogName" : "updated blog name", "blogDescription" : "updated blog description", "publicity" : true}' localhost:8080/admin/configurations -v
+```
+
 ## Deployment
 
 Put `.env` file under `docker` dir with copying from `.env.template` and fill out `POSTGRES_USER`, `POSTGRES_PASSWORD`.
