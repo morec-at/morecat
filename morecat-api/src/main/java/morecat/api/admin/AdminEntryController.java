@@ -40,7 +40,8 @@ public class AdminEntryController {
       created.getCreatedDate().getYear(), created.getCreatedDate().getMonthValue(), created.getCreatedDate().getDayOfMonth(), created.getTitle(), created.getAuthorName());
 
     return Response
-      .created(uriInfo.getAbsolutePathBuilder()
+      .created(uriInfo.getBaseUriBuilder()
+        .path("entries")
         .path(String.valueOf(created.getCreatedDate().getYear()))
         .path(String.valueOf(created.getCreatedDate().getMonthValue()))
         .path(String.valueOf(created.getCreatedDate().getDayOfMonth()))
