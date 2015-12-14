@@ -43,6 +43,11 @@
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
+      <artifactId>wildfly-swarm-jaxrs-multipart</artifactId>
+      <version>${version.wildfly.swarm}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.swarm</groupId>
       <artifactId>wildfly-swarm-jpa</artifactId>
       <version>${version.wildfly.swarm}</version>
     </dependency>
@@ -53,6 +58,12 @@
     </dependency>
 
     <!-- java ee implementation -->
+    <dependency>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-multipart-provider</artifactId>
+      <version>${version.resteasy}</version>
+      <scope>provided</scope>
+    </dependency>
     <dependency>
       <groupId>org.hibernate</groupId>
       <artifactId>hibernate-core</artifactId>
