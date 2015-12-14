@@ -6,16 +6,16 @@
 
 ### Entry(Public)
 
-#### GET all published
+#### GET all published(pageable)
 
 ``` sh
-curl localhost:8080/entries/2015/12/14/permalink1
+curl localhost:8080/entries
 ```
 
-#### GET an entry
+#### GET a published
 
 ``` sh
-curl localhost:8080/entries/2015/12/14/permalink1 
+curl localhost:8080/entries/:yyyy/:MM/:dd/:permalink 
 ```
 
 ### Entry(Admin)
@@ -36,7 +36,7 @@ $ curl -X PUT -H "Content-Type: application/json" -d '{"title":"updated-title", 
 #### DELETE
 
 ``` sh
-$ curl -X DELETE  localhost:8080/entries/1 -v
+$ curl -X DELETE  localhost:8080/admin/entries/1 -v
 ```
 
 ### Media
@@ -74,6 +74,8 @@ $ curl -X DELETE http://localhost:8080/admin/media/:uuid/:filename
 ``` sh
 $ curl -X GET localhost:8080/configurations
 ```
+
+### Configuration(Admin)
 
 #### PUT
 
