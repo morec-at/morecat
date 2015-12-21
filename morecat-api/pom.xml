@@ -186,6 +186,11 @@
             </goals>
           </execution>
         </executions>
+        <configuration>
+          <systemPropertyVariables>
+            <swarm.build.modules>${project.build.outputDirectory}/modules/</swarm.build.modules>
+          </systemPropertyVariables>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>pl.project13.maven</groupId>
