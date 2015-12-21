@@ -39,22 +39,22 @@
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
       <artifactId>wildfly-swarm-jaxrs-weld</artifactId>
-      <version>${version.wildfly.swarm}</version>
+      <version>${version.wildfly-swarm}</version>
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
       <artifactId>wildfly-swarm-jaxrs-multipart</artifactId>
-      <version>${version.wildfly.swarm}</version>
+      <version>${version.wildfly-swarm}</version>
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
       <artifactId>wildfly-swarm-jpa</artifactId>
-      <version>${version.wildfly.swarm}</version>
+      <version>${version.wildfly-swarm}</version>
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
       <artifactId>wildfly-swarm-hibernate-validator</artifactId>
-      <version>${version.wildfly.swarm}</version>
+      <version>${version.wildfly-swarm}</version>
     </dependency>
 
     <!-- java ee implementation -->
@@ -110,7 +110,7 @@
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
       <artifactId>wildfly-swarm-arquillian</artifactId>
-      <version>${version.wildfly.swarm}</version>
+      <version>${version.wildfly-swarm}</version>
     </dependency>
     <dependency>
       <groupId>org.jboss.arquillian.junit</groupId>
