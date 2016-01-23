@@ -18,7 +18,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <version.hibernate>5.0.1.Final</version.hibernate>
+    <version.hibernate>5.0.6.Final</version.hibernate>
     <version.postgresql>9.4-1201-jdbc41</version.postgresql>
     <version.lombok>1.16.4</version.lombok>
     <version.jboss-logging-processor>2.0.1.Final</version.jboss-logging-processor>
@@ -26,7 +26,7 @@
 
     <version.arquillian>1.1.8.Final</version.arquillian>
     <version.spock>1.0-groovy-2.4</version.spock>
-    <version.resteasy>3.0.13.Final</version.resteasy>
+    <version.resteasy>3.0.14.Final</version.resteasy>
 
     <version.gmavenplus-plugin>1.5</version.gmavenplus-plugin>
     <version.maven-failsafe-plugin>2.19</version.maven-failsafe-plugin>
@@ -38,22 +38,22 @@
     <!-- wildfly-swarm -->
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
-      <artifactId>wildfly-swarm-jaxrs-weld</artifactId>
+      <artifactId>jaxrs-weld</artifactId>
       <version>${version.wildfly-swarm}</version>
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
-      <artifactId>wildfly-swarm-jaxrs-multipart</artifactId>
+      <artifactId>jaxrs-multipart</artifactId>
       <version>${version.wildfly-swarm}</version>
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
-      <artifactId>wildfly-swarm-jpa</artifactId>
+      <artifactId>jpa</artifactId>
       <version>${version.wildfly-swarm}</version>
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
-      <artifactId>wildfly-swarm-hibernate-validator</artifactId>
+      <artifactId>hibernate-validator</artifactId>
       <version>${version.wildfly-swarm}</version>
     </dependency>
 
@@ -109,7 +109,7 @@
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
-      <artifactId>wildfly-swarm-arquillian</artifactId>
+      <artifactId>arquillian</artifactId>
       <version>${version.wildfly-swarm}</version>
     </dependency>
     <dependency>
