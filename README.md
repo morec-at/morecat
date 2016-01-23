@@ -104,13 +104,13 @@ docker-compose -f docker/docker-compose.yml up -d
 ## Build
 
 ``` sh
-mvn clean package
+./mvnw clean package
 ```
 
 ### Build Docker Image
 
 ``` sh
-mvn clean package docker:build
+./mvnw clean package docker:build
 ```
 
 ## Setup Environment
