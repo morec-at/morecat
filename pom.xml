@@ -20,20 +20,20 @@
 
     <version.wildfly-swarm>1.0.0.Alpha6</version.wildfly-swarm>
     <version.hibernate>5.0.6.Final</version.hibernate>
-    <version.postgresql>9.4-1201-jdbc41</version.postgresql>
-    <version.lombok>1.16.4</version.lombok>
+    <version.postgresql>9.4.1207</version.postgresql>
+    <version.lombok>1.16.6</version.lombok>
     <version.jboss-logging-processor>2.0.1.Final</version.jboss-logging-processor>
     <version.flyway>3.2.1</version.flyway>
 
     <version.junit>4.12</version.junit>
-    <version.arquillian>1.1.8.Final</version.arquillian>
+    <version.arquillian>1.1.9.Final</version.arquillian>
     <version.spock>1.0-groovy-2.4</version.spock>
     <version.resteasy>3.0.14.Final</version.resteasy>
 
     <version.gmavenplus-plugin>1.5</version.gmavenplus-plugin>
     <version.maven-test-plugin>2.19.1</version.maven-test-plugin>
-    <version.git-commit-id-plugin>2.1.15</version.git-commit-id-plugin>
-    <version.docker-maven-plugin>0.13.6</version.docker-maven-plugin>
+    <version.git-commit-id-plugin>2.2.0</version.git-commit-id-plugin>
+    <version.docker-maven-plugin>0.13.8</version.docker-maven-plugin>
   </properties>
 
   <dependencies>
@@ -107,7 +107,7 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.12</version>
+      <version>${version.junit}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -262,9 +262,9 @@
                       <dependencySet>
                         <useProjectAttachments>true</useProjectAttachments>
                         <includes>
-                          <include>morecat:morecat-api:jar:swarm</include>
+                          <include>morecat:morecat:jar:swarm</include>
                         </includes>
-                        <outputFileNameMapping>morecat-api-swarm.jar</outputFileNameMapping>
+                        <outputFileNameMapping>morecat-swarm.jar</outputFileNameMapping>
                       </dependencySet>
                     </dependencySets>
                   </inline>
