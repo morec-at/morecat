@@ -5,7 +5,6 @@ import lombok.Data;
 import morecat.domain.model.Entry;
 import morecat.util.TimeUtils;
 
-import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
@@ -19,11 +18,17 @@ public class MetaSingleEntry {
   private String content;
   private String permalink;
   private String authorName;
-  private LocalDateTime createdTime;
+  private String createdTime;
   private Set<String> tags;
 
   public static MetaSingleEntry from(Entry entry) {
     return new MetaSingleEntry(
-      entry.getTitle(), entry.getContent(), entry.getPermalink(), entry.getAuthorName(), TimeUtils.composite(entry.getCreatedDate(), entry.getCreatedTime()), entry.getTags());
+      entry.getTitle(),
+      entry.getContent(),
+      entry.getPermalink(),
+      entry.getAuthorName(),
+      TimeUtils.composite(entry.getCreatedDate(), entry.getCreatedTime()).toString(),
+      entry.getTags());
   }
+
 }

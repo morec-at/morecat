@@ -20,7 +20,7 @@ public class MetaEntry {
   private String title;
   private String permalink;
   private String authorName;
-  private LocalDateTime createdTime;
+  private String createdTime;
   private Set<String> tags;
 
   public static List<MetaEntry> from(List<Entry> entries) {
@@ -29,7 +29,11 @@ public class MetaEntry {
 
   private static MetaEntry from(Entry entry) {
     return new MetaEntry(
-      entry.getTitle(), entry.getPermalink(), entry.getAuthorName(), TimeUtils.composite(entry.getCreatedDate(), entry.getCreatedTime()), entry.getTags());
+      entry.getTitle(),
+      entry.getPermalink(),
+      entry.getAuthorName(),
+      TimeUtils.composite(entry.getCreatedDate(), entry.getCreatedTime()).toString(),
+      entry.getTags());
   }
 
 }
