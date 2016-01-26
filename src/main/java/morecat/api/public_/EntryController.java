@@ -1,6 +1,7 @@
 package morecat.api.public_;
 
 import morecat.api.helper.MetaEntry;
+import morecat.api.helper.MetaSiblingEntry;
 import morecat.api.helper.MetaSingleEntry;
 import morecat.domain.Page;
 import morecat.domain.Pageable;
@@ -55,7 +56,12 @@ public class EntryController {
     }
 
     SinglePage<Entry, SiblingEntry> published = publishedSingleEntry.get();
-    return Response.ok(published.convert(MetaSingleEntry.from(published.getElement()))).build();
+
+    return Response.ok(published.convert(
+      MetaSingleEntry.from(published.getElement()),
+      (published.getNext() != null) ? MetaSiblingEntry.from(published.getNext()) : null,
+      (published.getPrevious() != null) ? MetaSiblingEntry.from(published.getPrevious()) : null
+    )).build();
   }
 
 }

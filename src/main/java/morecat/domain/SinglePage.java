@@ -17,7 +17,8 @@ public class SinglePage<T, R> {
   private R next;
   private R previous;
 
-  public <S> SinglePage<S, R> convert(S element) {
-    return new SinglePage<S, R>(element, next, previous);
+  public <E, S> SinglePage<E, S> convert(E element, S next, S previous) {
+    return new SinglePage<E, S>(element, next, previous);
   }
+
 }
