@@ -17,7 +17,7 @@ import javax.ws.rs.core.Response;
  */
 @ApplicationScoped
 @Path("/admin/configurations")
-public class AdminConfigurationController {
+public class ConfigurationController {
 
   @Inject
   private ConfigurationService configurationService;
