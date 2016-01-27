@@ -22,7 +22,7 @@ import javax.ws.rs.core.UriInfo;
  */
 @ApplicationScoped
 @Path("/admin/entries")
-public class AdminEntryController {
+public class EntryController {
 
   @Inject
   private EntryService entryService;

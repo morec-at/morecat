@@ -32,7 +32,7 @@ import java.util.Optional;
  */
 @ApplicationScoped
 @Path("/admin/media")
-public class AdminMediaController {
+public class MediaController {
 
   @Inject
   private MediaService mediaService;
