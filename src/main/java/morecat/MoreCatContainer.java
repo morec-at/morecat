@@ -15,7 +15,7 @@ public class MoreCatContainer {
 
     container.fraction(new DatasourcesFraction()
       .jdbcDriver("org.postgresql", (d) -> {
-        d.driverDatasourceClassName("org.postgresql.Driver");
+        d.driverClassName("org.postgresql.Driver");
         d.xaDatasourceClass("org.postgresql.xa.PGXADataSource");
         d.driverModuleName("org.postgresql");
       })
