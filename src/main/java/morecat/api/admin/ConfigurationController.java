@@ -12,9 +12,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @ApplicationScoped
 @Path("/admin/configurations")
 public class ConfigurationController {

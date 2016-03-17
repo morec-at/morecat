@@ -9,9 +9,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @ApplicationScoped
 @Path("/version")
 public class VersionController {

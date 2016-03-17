@@ -8,9 +8,6 @@ import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 import javax.sql.DataSource;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @WebListener
 public class MoreCatContextListener implements ServletContextListener {
 

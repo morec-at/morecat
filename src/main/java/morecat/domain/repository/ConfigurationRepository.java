@@ -4,9 +4,6 @@ import morecat.domain.model.Configuration;
 
 import javax.enterprise.context.ApplicationScoped;
 
-/**
-* @author Yoshimasa Tanabe
-*/
 @ApplicationScoped
 public class ConfigurationRepository extends BaseRepository<Configuration> {
 

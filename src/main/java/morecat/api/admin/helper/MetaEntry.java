@@ -11,9 +11,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @Data
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class MetaEntry {

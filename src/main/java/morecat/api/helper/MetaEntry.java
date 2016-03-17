@@ -10,9 +10,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @Data
 @AllArgsConstructor
 public class MetaEntry {

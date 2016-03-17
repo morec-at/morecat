@@ -11,9 +11,6 @@ import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @ApplicationScoped
 public class MediaRepository extends BaseRepository<Media> {
 

@@ -7,9 +7,6 @@ import morecat.util.TimeUtils;
 
 import java.util.Set;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @Data
 @AllArgsConstructor
 public class MetaSingleEntry {

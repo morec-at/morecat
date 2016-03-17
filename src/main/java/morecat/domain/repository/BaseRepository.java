@@ -12,8 +12,6 @@ import javax.transaction.Transactional;
 import java.util.List;
 
 /**
- * @author Yoshimasa Tanabe
- *
  * @see <a href="https://github.com/nagaseyasuhito/camellia/blob/master/src/main/java/com/github/nagaseyasuhito/camellia/dao/BaseDao.java">BaseDAO - camellia</a>
  */
 public abstract class BaseRepository<T extends BaseEntity> {

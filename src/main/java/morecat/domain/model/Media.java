@@ -14,9 +14,6 @@ import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @Entity
 @Table(
   name = "media",
@@ -40,9 +37,6 @@ public class Media extends BaseEntity {
   @NotNull
   private byte[] content;
 
-  /**
-   * Keycloak user name
-   */
   @Column(name = "author_name", nullable = false)
   @NotNull
   private String authorName;

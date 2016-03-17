@@ -27,9 +27,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @ApplicationScoped
 @Path("/admin/entries")
 public class EntryController {

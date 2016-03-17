@@ -3,9 +3,6 @@ package morecat.util;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/**
- * @author Yoshimasa Tanabe
- */
 public class TimeUtils {
 
   private TimeUtils() {}

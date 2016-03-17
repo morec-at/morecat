@@ -10,9 +10,6 @@ import morecat.util.TimeUtils;
 
 import java.util.Set;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @Data
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class MetaSingleEntry {

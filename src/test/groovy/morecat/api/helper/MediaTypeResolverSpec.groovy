@@ -2,9 +2,6 @@ package morecat.api.helper
 
 import spock.lang.Specification
 
-/**
- * @author Yoshimasa Tanabe
- */
 class MediaTypeResolverSpec extends Specification {
 
   def "should resolve media type from a file name"() {
@@ -17,4 +14,5 @@ class MediaTypeResolverSpec extends Specification {
     "b.c.d.png" | "image/png"
     "x.foo"     | "application/octet-stream"
   }
+
 }

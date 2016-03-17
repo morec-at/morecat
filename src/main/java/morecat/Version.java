@@ -3,9 +3,6 @@ package morecat;
 import java.io.IOException;
 import java.util.Properties;
 
-/**
- * @author Yoshimasa Tanabe
- */
 public class Version {
 
   private final static String version;
