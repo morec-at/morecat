@@ -4,9 +4,6 @@ import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.ClassLoaderAsset;
 import org.wildfly.swarm.jaxrs.JAXRSArchive;
 
-/**
- * @author Yoshimasa Tanabe
- */
 public class MoreCatDeployment {
 
   public static JAXRSArchive deployment() throws Exception {

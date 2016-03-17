@@ -7,9 +7,6 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.transaction.Transactional;
 
-/**
-* @author Yoshimasa Tanabe
-*/
 @ApplicationScoped
 public class ConfigurationService {
 

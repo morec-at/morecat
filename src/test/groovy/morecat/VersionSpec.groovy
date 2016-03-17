@@ -1,9 +1,7 @@
 package morecat
 
 import spock.lang.Specification
-/**
- * @author Yoshimasa Tanabe
- */
+
 class VersionSpec extends Specification {
 
   def "return version from properties file"() {

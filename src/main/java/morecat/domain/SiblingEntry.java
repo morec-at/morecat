@@ -4,9 +4,6 @@ import lombok.Data;
 
 import java.time.LocalDate;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @Data
 public class SiblingEntry {
 

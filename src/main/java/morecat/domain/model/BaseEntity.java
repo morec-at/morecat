@@ -9,9 +9,6 @@ import javax.persistence.MappedSuperclass;
 import javax.persistence.Version;
 import java.io.Serializable;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @MappedSuperclass
 @Data
 public abstract class BaseEntity implements Serializable {

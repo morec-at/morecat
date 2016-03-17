@@ -4,9 +4,6 @@ import org.wildfly.swarm.container.Container;
 import org.wildfly.swarm.datasources.DatasourcesFraction;
 import org.wildfly.swarm.jpa.JPAFraction;
 
-/**
- * @author Yoshimasa Tanabe
- */
 public class MoreCatContainer {
 
   private static final String DB_URL = MoreCatConfiguration.getDBUrl();

@@ -30,9 +30,6 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @Entity
 @Table(
   name = "entries",
@@ -58,9 +55,6 @@ public class Entry extends BaseEntity {
   @NotEmpty(message = "Permalink must not be empty")
   private String permalink;
 
-  /**
-   * Keycloak user name
-   */
   @Column(name = "author_name", nullable = false)
   @NotNull
   private String authorName;

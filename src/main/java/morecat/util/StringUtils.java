@@ -1,8 +1,5 @@
 package morecat.util;
 
-/**
- * @author Yoshimasa Tanabe
- */
 public class StringUtils {
 
   private StringUtils() {}

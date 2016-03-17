@@ -7,9 +7,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @Data
 public class MetaMedia {
 

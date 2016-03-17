@@ -7,9 +7,6 @@ import morecat.domain.SiblingEntry;
 
 import java.time.LocalDate;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @Data
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class MetaSiblingEntry {

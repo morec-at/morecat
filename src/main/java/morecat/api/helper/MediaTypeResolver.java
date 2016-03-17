@@ -3,9 +3,6 @@ package morecat.api.helper;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author Yoshimasa Tanabe
- */
 public class MediaTypeResolver {
 
   private static final Map<String, String> mediaTypes;

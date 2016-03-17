@@ -12,9 +12,6 @@ import javax.inject.Inject;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * @author Yoshimasa Tanabe
- */
 @ApplicationScoped
 public class EntryService {
 

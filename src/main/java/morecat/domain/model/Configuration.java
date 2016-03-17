@@ -11,9 +11,6 @@ import javax.persistence.Entity;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 
-/**
- * @author tanabe
- */
 @Entity
 @Table(name = "configurations")
 @Data

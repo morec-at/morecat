@@ -31,9 +31,6 @@ import java.util.Set;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
-/**
- * @author Yoshimasa Tanabe
- */
 public class EntryServiceIT implements ContainerFactory {
 
   private static JAXRSArchive deploymentEntryServiceIT() throws Exception {

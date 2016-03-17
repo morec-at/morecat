@@ -1,8 +1,5 @@
 package morecat;
 
-/**
- * @author Yoshimasa Tanabe
- */
 public class MoreCatConfiguration {
 
   private MoreCatConfiguration() {}
