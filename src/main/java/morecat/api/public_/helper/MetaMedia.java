@@ -1,4 +1,4 @@
-package morecat.api.helper;
+package morecat.api.public_.helper;
 
 import lombok.Data;
 import morecat.domain.model.Media;

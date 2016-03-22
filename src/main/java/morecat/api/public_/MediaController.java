@@ -1,7 +1,7 @@
 package morecat.api.public_;
 
-import morecat.api.helper.MediaTypeResolver;
-import morecat.api.helper.MetaMedia;
+import morecat.api.public_.helper.MediaTypeResolver;
+import morecat.api.public_.helper.MetaMedia;
 import morecat.domain.Page;
 import morecat.domain.Pageable;
 import morecat.domain.model.Media;

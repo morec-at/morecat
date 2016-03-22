@@ -1,8 +1,8 @@
 package morecat.api.public_;
 
-import morecat.api.helper.MetaEntry;
-import morecat.api.helper.MetaSiblingEntry;
-import morecat.api.helper.MetaSingleEntry;
+import morecat.api.public_.helper.MetaEntry;
+import morecat.api.public_.helper.MetaSiblingEntry;
+import morecat.api.public_.helper.MetaSingleEntry;
 import morecat.domain.Page;
 import morecat.domain.Pageable;
 import morecat.domain.SiblingEntry;
