@@ -13,7 +13,7 @@ public class MetaMedia {
   private final String uuid;
   private final String name;
   private final String authorName;
-  private final LocalDateTime createdTimeStamp;
+  private final String createdTimeStamp;
 
   public static List<MetaMedia> from(List<Media> mediums) {
     return mediums.stream().map(MetaMedia::from).collect(Collectors.toList());
@@ -21,7 +21,10 @@ public class MetaMedia {
 
   private static MetaMedia from(Media media) {
     return new MetaMedia(
-      media.getUuid(), media.getName(), media.getAuthorName(), media.getCreatedTimeStamp());
+        media.getUuid(),
+        media.getName(),
+        media.getAuthorName(),
+        media.getCreatedTimeStamp().toString());
   }
 
 }
