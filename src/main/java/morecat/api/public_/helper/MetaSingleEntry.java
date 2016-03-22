@@ -1,32 +1,27 @@
-package morecat.api.helper;
+package morecat.api.public_.helper;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import morecat.domain.model.Entry;
 import morecat.util.TimeUtils;
 
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Data
 @AllArgsConstructor
-public class MetaEntry {
+public class MetaSingleEntry {
 
   private String title;
+  private String content;
   private String permalink;
   private String authorName;
   private String createdTime;
   private Set<String> tags;
 
-  public static List<MetaEntry> from(List<Entry> entries) {
-    return entries.stream().map(MetaEntry::from).collect(Collectors.toList());
-  }
-
-  private static MetaEntry from(Entry entry) {
-    return new MetaEntry(
+  public static MetaSingleEntry from(Entry entry) {
+    return new MetaSingleEntry(
       entry.getTitle(),
+      entry.getContent(),
       entry.getPermalink(),
       entry.getAuthorName(),
       TimeUtils.composite(entry.getCreatedDate(), entry.getCreatedTime()).toString(),
