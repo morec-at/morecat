@@ -143,3 +143,11 @@ java \
   -Dswarm.morecat.db.user=morecat -Dswarm.morecat.db.password=morecat \
   -jar target/morecat-swarm.jar
 ```
+
+## Integration Test
+
+``` sh
+./mvnw clean verify \
+  -Dswarm.morecat.db.host=localhost -Dswarm.morecat.db.port=5432 \
+  -Dswarm.morecat.db.user=morecat -Dswarm.morecat.db.password=morecat
+```
