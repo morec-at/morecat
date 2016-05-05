@@ -18,7 +18,7 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
 
-    <version.wildfly-swarm>1.0.0.Beta6</version.wildfly-swarm>
+    <version.wildfly-swarm>1.0.0.Beta8</version.wildfly-swarm>
     <version.arquillian-bom>1.1.10.Final</version.arquillian-bom>
 
     <version.hibernate>5.0.6.Final</version.hibernate>
@@ -60,7 +60,7 @@
     <!-- wildfly-swarm -->
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
-      <artifactId>jaxrs-weld</artifactId>
+      <artifactId>jaxrs-cdi</artifactId>
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
@@ -76,12 +76,6 @@
     </dependency>
 
     <!-- java ee implementation -->
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>resteasy-multipart-provider</artifactId>
-      <version>${version.resteasy}</version>
-      <scope>provided</scope>
-    </dependency>
     <dependency>
       <groupId>org.hibernate</groupId>
       <artifactId>hibernate-core</artifactId>
