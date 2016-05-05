@@ -6,23 +6,24 @@ import morecat.domain.model.Configuration;
 import morecat.domain.repository.ConfigurationRepository;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
+import org.jboss.shrinkwrap.api.Archive;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.wildfly.swarm.ContainerFactory;
 import org.wildfly.swarm.container.Container;
-import org.wildfly.swarm.jaxrs.JAXRSArchive;
 
 import javax.inject.Inject;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.junit.Assert.assertThat;
 
 @RunWith(Arquillian.class)
 public class ConfigurationServiceIT implements ContainerFactory {
 
   @Deployment
-  public static JAXRSArchive deployment() throws Exception {
+  public static Archive deployment() throws Exception {
     return MoreCatDeployment.deployment();
   }
 
