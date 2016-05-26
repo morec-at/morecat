@@ -1,4 +1,4 @@
-package morecat;
+package morecat.api;
 
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerResponseContext;
