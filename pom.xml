@@ -18,11 +18,10 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
 
-    <version.wildfly-swarm>1.0.0.Beta8</version.wildfly-swarm>
+    <version.wildfly-swarm>1.0.0.CR1</version.wildfly-swarm>
     <version.arquillian-bom>1.1.10.Final</version.arquillian-bom>
 
     <version.hibernate>5.0.6.Final</version.hibernate>
-    <version.postgresql>9.4.1207</version.postgresql>
     <version.lombok>1.16.6</version.lombok>
     <version.jboss-logging-processor>2.0.1.Final</version.jboss-logging-processor>
     <version.flyway>3.2.1</version.flyway>
@@ -68,7 +67,7 @@
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
-      <artifactId>jpa</artifactId>
+      <artifactId>jpa-postgresql</artifactId>
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
@@ -90,11 +89,6 @@
     </dependency>
 
     <!-- misc. -->
-    <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-      <version>${version.postgresql}</version>
-    </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>

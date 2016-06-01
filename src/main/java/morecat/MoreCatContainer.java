@@ -2,7 +2,7 @@ package morecat;
 
 import org.wildfly.swarm.container.Container;
 import org.wildfly.swarm.datasources.DatasourcesFraction;
-import org.wildfly.swarm.jpa.JPAFraction;
+import org.wildfly.swarm.jpa.postgresql.PostgreSQLJPAFraction;
 
 public class MoreCatContainer {
 
@@ -27,7 +27,7 @@ public class MoreCatContainer {
       })
     );
 
-    container.fraction(new JPAFraction()
+    container.fraction(new PostgreSQLJPAFraction()
       .inhibitDefaultDatasource()
       .defaultDatasource("jboss/datasources/morecatDS")
     );
