@@ -8,6 +8,8 @@ import java.util.Arrays;
 
 public class MoreCatDeployment {
 
+  private MoreCatDeployment() {}
+
   public static JAXRSArchive deployment() throws Exception {
     JAXRSArchive deployment = ShrinkWrap.create(JAXRSArchive.class);
 
