@@ -20,7 +20,7 @@ public class MoreCatConfiguration {
             .driverModuleName("org.postgresql"))
         .dataSource(datasourceName, (ds) -> ds
             .driverName("postgresql")
-            .connectionUrl("jdbc:postgresql://" + DB.url() + "/morecat")
+            .connectionUrl(DB.url())
             .userName(DB.user())
             .password(DB.password()));
   }
@@ -34,7 +34,7 @@ public class MoreCatConfiguration {
   private static class DB {
 
     private static String url() {
-      return host() + ":" + port();
+      return "jdbc:postgresql://" + host() + ":" + port() + "/morecat";
     }
 
     private static String host() {
@@ -62,7 +62,6 @@ public class MoreCatConfiguration {
 
       return port;
     }
-
 
     private static String user() {
       String user = "";
