@@ -4,6 +4,8 @@ import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.ClassLoaderAsset;
 import org.wildfly.swarm.jaxrs.JAXRSArchive;
 
+import java.util.Arrays;
+
 public class MoreCatDeployment {
 
   public static JAXRSArchive deployment() throws Exception {
@@ -11,20 +13,32 @@ public class MoreCatDeployment {
 
     deployment.addPackages(true, App.class.getPackage());
 
-    deployment.addAsWebInfResource(
-      new ClassLoaderAsset("META-INF/persistence.xml", App.class.getClassLoader()), "classes/META-INF/persistence.xml");
-    deployment.addAsWebInfResource(
-      new ClassLoaderAsset("morecat/version.properties", App.class.getClassLoader()), "classes/morecat/version.properties");
-    deployment.addAsWebInfResource(
-      new ClassLoaderAsset("morecat/git.properties", App.class.getClassLoader()), "classes/morecat/git.properties");
-    deployment.addAsWebInfResource(
-      new ClassLoaderAsset("db/migration/V1__create_schema.sql", App.class.getClassLoader()), "classes/db/migration/V1__create_schema.sql");
-    deployment.addAsWebInfResource(
-      new ClassLoaderAsset("db/migration/V1.1__import_initial_data.sql", App.class.getClassLoader()), "classes/db/migration/V1.1__import_initial_data.sql");
+    toMetaInf(deployment, "persistence.xml");
+    toClasses(deployment,
+        "morecat/version.properties",
+        "morecat/git.properties",
+        "db/migration/V1__create_schema.sql",
+        "db/migration/V1.1__import_initial_data.sql");
 
     deployment.addAllDependencies();
 
     return deployment;
+  }
+
+  private static void toMetaInf(JAXRSArchive deployment, String... paths) {
+    Arrays.stream(paths).forEach(path ->
+        add(deployment, "META-INF/" + path, "classes/META-INF/" + path)
+    );
+  }
+
+  private static void toClasses(JAXRSArchive deployment, String... paths) {
+    Arrays.stream(paths).forEach(path ->
+        add(deployment, path, "classes/" + path)
+    );
+  }
+
+  private static void add(JAXRSArchive deployment, String from, String to) {
+    deployment.addAsWebInfResource(new ClassLoaderAsset(from, App.class.getClassLoader()), to);
   }
 
 }
