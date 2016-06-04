@@ -6,8 +6,8 @@ public class MoreCatContainer {
 
   private static final String DATASOURCE_NAME = "morecatDS";
 
-  public static Container newContainer() throws Exception {
-    Container container = new Container();
+  public static Container newContainer(String... args) throws Exception {
+    Container container = new Container(args);
 
     MoreCatConfiguration configuration = new MoreCatConfiguration(container);
 
