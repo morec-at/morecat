@@ -20,9 +20,9 @@ public class MoreCatConfiguration {
             .driverModuleName("org.postgresql"))
         .dataSource(datasourceName, (ds) -> ds
             .driverName("postgresql")
-            .connectionUrl("jdbc:postgresql://" + dbUrl() + "/morecat")
-            .userName(dbUser())
-            .password(dbPassword()));
+            .connectionUrl("jdbc:postgresql://" + DB.url() + "/morecat")
+            .userName(DB.user())
+            .password(DB.password()));
   }
 
   PostgreSQLJPAFraction jpaFraction(String datasourceName) {
@@ -31,61 +31,64 @@ public class MoreCatConfiguration {
         .defaultDatasource("jboss/datasources/" + datasourceName);
   }
 
-  private String dbUrl() {
-    return dbHost() + ":" + dbPort();
-  }
+  private static class DB {
 
-  private String dbHost() {
-    String dbHost = "localhost";
-
-    if (System.getenv("DB_PORT_5432_TCP_ADDR") != null) {
-      dbHost = System.getenv("DB_PORT_5432_TCP_ADDR");
-    }
-    if (System.getProperty("swarm.morecat.db.host") != null) {
-      dbHost = System.getProperty("swarm.morecat.db.host");
+    private static String url() {
+      return host() + ":" + port();
     }
 
-    return dbHost;
-  }
+    private static String host() {
+      String host = "localhost";
 
-  private String dbPort() {
-    String dbPort = "5432";
+      if (System.getenv("DB_PORT_5432_TCP_ADDR") != null) {
+        host = System.getenv("DB_PORT_5432_TCP_ADDR");
+      }
+      if (System.getProperty("swarm.morecat.db.host") != null) {
+        host = System.getProperty("swarm.morecat.db.host");
+      }
 
-    if (System.getenv("DB_PORT_5432_TCP_PORT") != null) {
-      dbPort = System.getenv("DB_PORT_5432_TCP_PORT");
-    }
-    if (System.getProperty("swarm.morecat.db.port") != null) {
-      dbPort = System.getProperty("swarm.morecat.db.port");
-    }
-
-    return dbPort;
-  }
-
-
-  private String dbUser() {
-    String dbUser = "";
-
-    if (System.getenv("DB_ENV_POSTGRES_USER") != null) {
-      dbUser = System.getenv("DB_ENV_POSTGRES_USER");
-    }
-    if (System.getProperty("swarm.morecat.db.user") != null) {
-      dbUser = System.getProperty("swarm.morecat.db.user");
+      return host;
     }
 
-    return dbUser;
-  }
+    private static String port() {
+      String port = "5432";
 
-  private String dbPassword() {
-    String dbPassword = "";
+      if (System.getenv("DB_PORT_5432_TCP_PORT") != null) {
+        port = System.getenv("DB_PORT_5432_TCP_PORT");
+      }
+      if (System.getProperty("swarm.morecat.db.port") != null) {
+        port = System.getProperty("swarm.morecat.db.port");
+      }
 
-    if (System.getenv("DB_ENV_POSTGRES_PASSWORD") != null) {
-      dbPassword = System.getenv("DB_ENV_POSTGRES_PASSWORD");
+      return port;
     }
-    if (System.getProperty("swarm.morecat.db.password") != null) {
-      dbPassword = System.getProperty("swarm.morecat.db.password");
+
+
+    private static String user() {
+      String user = "";
+
+      if (System.getenv("DB_ENV_POSTGRES_USER") != null) {
+        user = System.getenv("DB_ENV_POSTGRES_USER");
+      }
+      if (System.getProperty("swarm.morecat.db.user") != null) {
+        user = System.getProperty("swarm.morecat.db.user");
+      }
+
+      return user;
     }
 
-    return dbPassword;
+    private static String password() {
+      String password = "";
+
+      if (System.getenv("DB_ENV_POSTGRES_PASSWORD") != null) {
+        password = System.getenv("DB_ENV_POSTGRES_PASSWORD");
+      }
+      if (System.getProperty("swarm.morecat.db.password") != null) {
+        password = System.getProperty("swarm.morecat.db.password");
+      }
+
+      return password;
+    }
   }
 
 }
