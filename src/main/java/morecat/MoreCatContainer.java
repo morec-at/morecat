@@ -1,36 +1,19 @@
 package morecat;
 
 import org.wildfly.swarm.container.Container;
-import org.wildfly.swarm.datasources.DatasourcesFraction;
-import org.wildfly.swarm.jpa.postgresql.PostgreSQLJPAFraction;
 
 public class MoreCatContainer {
 
-  private static final String DB_URL = MoreCatConfiguration.getDBUrl();
-  private static final String DB_USER = MoreCatConfiguration.getDBUser();
-  private static final String DB_PASSWORD = MoreCatConfiguration.getDBPassword();
+  private static final String DATASOURCE_NAME = "morecatDS";
 
   public static Container newContainer() throws Exception {
     Container container = new Container();
 
-    container.fraction(new DatasourcesFraction()
-      .jdbcDriver("org.postgresql", (d) -> {
-        d.driverClassName("org.postgresql.Driver");
-        d.xaDatasourceClass("org.postgresql.xa.PGXADataSource");
-        d.driverModuleName("org.postgresql");
-      })
-      .dataSource("morecatDS", (ds) -> {
-        ds.driverName("org.postgresql");
-        ds.connectionUrl("jdbc:postgresql://" + DB_URL + "/morecat");
-        ds.userName(DB_USER);
-        ds.password(DB_PASSWORD);
-      })
-    );
+    MoreCatConfiguration configuration = new MoreCatConfiguration(container);
 
-    container.fraction(new PostgreSQLJPAFraction()
-      .inhibitDefaultDatasource()
-      .defaultDatasource("jboss/datasources/morecatDS")
-    );
+    container
+        .fraction(configuration.datasourcesFraction(DATASOURCE_NAME))
+        .fraction(configuration.jpaFraction(DATASOURCE_NAME));
 
     return container;
   }

@@ -1,14 +1,41 @@
 package morecat;
 
+import org.wildfly.swarm.container.Container;
+import org.wildfly.swarm.datasources.DatasourcesFraction;
+import org.wildfly.swarm.jpa.postgresql.PostgreSQLJPAFraction;
+
 public class MoreCatConfiguration {
 
-  private MoreCatConfiguration() {}
+  private final Container container;
 
-  public static String getDBUrl() {
-    return getDBHost() + ":" + getDBPort();
+  MoreCatConfiguration(Container container) {
+    this.container = container;
   }
 
-  private static String getDBHost() {
+  DatasourcesFraction datasourcesFraction(String datasourceName) {
+    return new DatasourcesFraction()
+        .jdbcDriver("postgresql", (d) -> d
+            .driverClassName("org.postgresql.Driver")
+            .xaDatasourceClass("org.postgresql.xa.PGXADataSource")
+            .driverModuleName("org.postgresql"))
+        .dataSource(datasourceName, (ds) -> ds
+            .driverName("postgresql")
+            .connectionUrl("jdbc:postgresql://" + dbUrl() + "/morecat")
+            .userName(dbUser())
+            .password(dbPassword()));
+  }
+
+  PostgreSQLJPAFraction jpaFraction(String datasourceName) {
+    return new PostgreSQLJPAFraction()
+        .inhibitDefaultDatasource()
+        .defaultDatasource("jboss/datasources/" + datasourceName);
+  }
+
+  private String dbUrl() {
+    return dbHost() + ":" + dbPort();
+  }
+
+  private String dbHost() {
     String dbHost = "localhost";
 
     if (System.getenv("DB_PORT_5432_TCP_ADDR") != null) {
@@ -21,7 +48,7 @@ public class MoreCatConfiguration {
     return dbHost;
   }
 
-  private static String getDBPort() {
+  private String dbPort() {
     String dbPort = "5432";
 
     if (System.getenv("DB_PORT_5432_TCP_PORT") != null) {
@@ -35,7 +62,7 @@ public class MoreCatConfiguration {
   }
 
 
-  public static String getDBUser() {
+  private String dbUser() {
     String dbUser = "";
 
     if (System.getenv("DB_ENV_POSTGRES_USER") != null) {
@@ -48,7 +75,7 @@ public class MoreCatConfiguration {
     return dbUser;
   }
 
-  public static String getDBPassword() {
+  private String dbPassword() {
     String dbPassword = "";
 
     if (System.getenv("DB_ENV_POSTGRES_PASSWORD") != null) {
