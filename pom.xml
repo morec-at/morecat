@@ -22,9 +22,9 @@
     <version.arquillian-bom>1.1.10.Final</version.arquillian-bom>
 
     <version.hibernate>5.0.6.Final</version.hibernate>
-    <version.lombok>1.16.6</version.lombok>
+    <version.lombok>1.16.8</version.lombok>
     <version.jboss-logging-processor>2.0.1.Final</version.jboss-logging-processor>
-    <version.flyway>3.2.1</version.flyway>
+    <version.flyway>4.0.2</version.flyway>
 
     <version.junit>4.12</version.junit>
     <version.spock>1.0-groovy-2.4</version.spock>
