@@ -26,7 +26,7 @@
     <version.jboss-logging-processor>2.0.1.Final</version.jboss-logging-processor>
     <version.flyway>4.0.2</version.flyway>
 
-    <version.junit>4.12</version.junit>
+    <version.junit>4.13.1</version.junit>
     <version.spock>1.0-groovy-2.4</version.spock>
     <version.resteasy>3.0.14.Final</version.resteasy>
 
