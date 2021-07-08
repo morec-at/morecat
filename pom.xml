@@ -28,7 +28,7 @@
 
     <version.junit>4.12</version.junit>
     <version.spock>1.0-groovy-2.4</version.spock>
-    <version.resteasy>3.0.14.Final</version.resteasy>
+    <version.resteasy>4.5.7.Final</version.resteasy>
 
     <version.gmavenplus-plugin>1.5</version.gmavenplus-plugin>
     <version.maven-test-plugin>2.19.1</version.maven-test-plugin>
