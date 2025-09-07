@@ -1,0 +1,1 @@
+INSERT INTO configurations (version, blog_name, blog_description, publicity) VALUES (0, 'default_name', 'default_description', FALSE);
