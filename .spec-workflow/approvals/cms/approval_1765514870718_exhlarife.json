@@ -1,0 +1,27 @@
+{
+  "id": "approval_1765514870718_exhlarife",
+  "title": "CMS Tasks Document (Updated)",
+  "filePath": ".spec-workflow/specs/cms/tasks.md",
+  "type": "document",
+  "status": "needs-revision",
+  "createdAt": "2025-12-12T04:47:50.718Z",
+  "category": "spec",
+  "categoryName": "cms",
+  "response": "Feedback Summary (1 comments):\n\nSpecific Text Comments:\n1. \"apps/api/src/main/scala/morecat/repository/\": package by layer ではなく、package by feature でパッケージしてください\n",
+  "annotations": "{\n  \"decision\": \"needs-revision\",\n  \"comments\": [\n    {\n      \"type\": \"selection\",\n      \"comment\": \"package by layer ではなく、package by feature でパッケージしてください\",\n      \"timestamp\": \"2025-12-12T04:49:15.770Z\",\n      \"selectedText\": \"apps/api/src/main/scala/morecat/repository/\",\n      \"highlightColor\": {\n        \"bg\": \"rgba(255, 235, 59, 0.3)\",\n        \"border\": \"#FFEB3B\",\n        \"name\": \"#ffeb3b\"\n      },\n      \"id\": \"comment_1765514955770_viqz3x4fn\"\n    }\n  ],\n  \"summary\": \"Feedback Summary (1 comments):\\n\\nSpecific Text Comments:\\n1. \\\"apps/api/src/main/scala/morecat/repository/\\\": package by layer ではなく、package by feature でパッケージしてください\\n\",\n  \"timestamp\": \"2025-12-12T04:49:22.006Z\"\n}",
+  "respondedAt": "2025-12-12T04:49:22.014Z",
+  "comments": [
+    {
+      "type": "selection",
+      "comment": "package by layer ではなく、package by feature でパッケージしてください",
+      "timestamp": "2025-12-12T04:49:15.770Z",
+      "selectedText": "apps/api/src/main/scala/morecat/repository/",
+      "highlightColor": {
+        "bg": "rgba(255, 235, 59, 0.3)",
+        "border": "#FFEB3B",
+        "name": "#ffeb3b"
+      },
+      "id": "comment_1765514955770_viqz3x4fn"
+    }
+  ]
+}
