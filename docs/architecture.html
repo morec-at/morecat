@@ -80,13 +80,12 @@ flowchart LR
   reader -. 画像 .-> gcs
 
   viewer -->|"SSR/ISR fetch (クエリ)"| api
-  api -. "publish 時 revalidate webhook" .-> viewer
 
   editor -->|"コマンド (httpOnly Cookie)"| api
   editor -->|OAuth| gh
   gh -. callback .-> api
 
-  api -->|"イベント append"| fs
+  api -->|"イベント append + slug 予約 (同一Tx)"| fs
   api -->|"クエリ/読取"| sql
   api -->|"プロキシ入稿"| gcs
 
@@ -94,6 +93,7 @@ flowchart LR
   eva -. "push (at-least-once)" .-> rmu
   rmu -->|"全ストリーム読取"| fs
   rmu -->|"fold して upsert"| sql
+  rmu -. "upsert 完了後 revalidate" .-> viewer
 
   classDef gcp fill:#e0f2fe,stroke:#0ea5e9,color:#0c4a6e;
   classDef fb fill:#fff7ed,stroke:#f59e0b,color:#7c2d12;
@@ -125,10 +125,13 @@ sequenceDiagram
   participant RMU as RMU (Scala.js/Node)
   participant SQL as Cloud SQL (読取モデル)
 
+  participant V as viewer
+
   A->>API: コマンド (Drafted/Revised/Published/Unpublished)<br/>httpOnly Cookie
-  API->>FS: append event<br/>articles/[id]/events/[seq] (create-only=楽観ロック)
-  alt seq 衝突
-    FS-->>API: 既存 → 並行競合
+  Note over API,FS: 同一 Firestore Tx で append + slug 予約
+  API->>FS: event append (create-only=楽観ロック)<br/>+ slugs/[slug] 予約 (create-only)
+  alt seq 衝突 または slug 重複
+    FS-->>API: 競合
     API-->>A: 409 Conflict
   else 成功
     FS-->>API: ok
@@ -141,8 +144,7 @@ sequenceDiagram
   RMU->>FS: その articleId の全イベントを読取
   RMU->>RMU: domain.js で fold（プロジェクション再構築）
   RMU->>SQL: upsert（lastAppliedSeq で古い適用を skip）
-
-  Note over A,SQL: 読取は別経路（CQRS）。公開操作時に API が viewer へ revalidate webhook を送る
+  RMU-)V: revalidate (upsert 完了後 / read-your-write)
     </div>
   </section>
 

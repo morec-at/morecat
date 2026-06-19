@@ -1,0 +1,39 @@
+# Repository Guidelines
+
+設計の全体像は `docs/design.md`、構成図は `docs/architecture.html` を参照。本ファイルは貢献者 / エージェント向けの作業ガイド。
+
+## Project Structure & Module Organization
+モノレポ。Scala バックエンドは **単一 sbt ビルド**、UI は **pnpm workspace**。
+
+- `modules/domain` — crossProject(`.jvm` / `.js`)。Article イベント ADT・値オブジェクト(Iron)・projection fold(純粋)・JSON codec。API と RMU で共有する唯一の Scala コード。
+- `apps/api` — JVM デプロイ単位（Cloud Run）。tapir HTTP サーバ。配下に `application`（ユースケース）/ `infrastructure`（Firestore JVM SDK・Postgres JDBC・GCS・tapir）/ `bootstrap`。
+- `apps/rmu` — Scala.js → Node デプロイ単位（Cloud Run）。Eventarc 起動の Read Model Updater。`domain.js` を共有、IO は Node facade（`@google-cloud/firestore`, `pg`）。
+- `apps/ui/web/viewer` — Next.js SSR（Firebase App Hosting）。
+- `apps/ui/web/editor` — Vite + React SPA（Firebase Hosting）。
+- `apps/ui/packages/api-client` — OpenAPI から生成した型 / クライアント（viewer・editor で共有）。
+- `apps/ui/cui` — v1 ではドロップ（プレースホルダ維持）。
+- `docs/` — 設計・図。
+
+`.gitkeep` は実体が入った時点で削除し、各 app に責務を説明する README を置く。
+
+## Build, Test, and Development Commands
+- Scala: ルートの単一 sbt ビルドで `sbt compile` / `sbt test`。モジュール指定は `sbt domain/test`、`sbt api/run` 等。RMU は Scala.js のため `sbt rmu/fastLinkJS`（dev）/ `rmu/fullLinkJS`（prod）。
+- UI: `apps/ui` で `pnpm install`、各 app で `pnpm dev` / `pnpm build` / `pnpm test` / `pnpm lint`。
+- 型生成: API の OpenAPI から `packages/api-client` を再生成（`pnpm gen:api`）。
+- リポジトリ全体のエントリは将来 root の `Makefile`（例 `make dev-api` / `make test-ui`）に集約する。
+
+## Coding Style & Naming Conventions
+- Scala 3: scalafmt で整形。ドメインは純粋に保ち、IO は infrastructure に閉じる（ヘクサゴナル）。
+- TypeScript: Prettier + ESLint（`--max-warnings=0`）。2-space、single quote、trailing comma。
+- 命名: 関数 `camelCase`、型/コンポーネント/クラス `PascalCase`、ファイル/ディレクトリ `kebab-case`。
+- 環境変数は各 app にスコープし、`.env.local`（git-ignored）。
+
+## Testing Guidelines
+- Scala: **zio-test**。ドメイン（fold・不変条件）を重点的に。spec は対象モジュール配下。
+- TS: ユニットは `*.spec.ts` を co-locate、`apps/ui/web/<app>/tests/integration` に統合テスト。
+- マージ前に高速なユニットを通す。意図的なギャップは PR に記載。
+
+## Commit & Pull Request Guidelines
+- Conventional Commits（`type(scope): summary`）。
+- PR には概要・関連 issue・レビュー用セットアップ手順・UI 変更はスクリーンショットを含める。
+- ワークフローを変えたら本 AGENTS.md も更新する。
