@@ -1,16 +1,39 @@
 # Repository Guidelines
 
+設計の全体像は `docs/design.md`、構成図は `docs/architecture.html` を参照。本ファイルは貢献者 / エージェント向けの作業ガイド。
+
 ## Project Structure & Module Organization
-The repository currently hosts a scaffolded mono-repo under `apps/`. Use `apps/api` for the backend service. Keep source in `apps/api/src`, configuration in `apps/api/config`, and integration tests in `apps/api/tests`. `apps/ui/cui` houses the terminal client; mirror the same `src`/`tests` layout and keep distributable assets under `apps/ui/cui/assets`. The web experience splits into `apps/ui/web/editor` and `apps/ui/web/viewer`; treat each as a standalone package with dedicated `src`, `public`, and `tests` folders. Remove `.gitkeep` files as soon as real content lands and add README stubs in each app explaining domain responsibilities.
+モノレポ。Scala バックエンドは **単一 sbt ビルド**、UI は **pnpm workspace**。
+
+- `modules/domain` — crossProject(`.jvm` / `.js`)。Article イベント ADT・値オブジェクト(Iron)・projection fold(純粋)・JSON codec。API と RMU で共有する唯一の Scala コード。
+- `apps/api` — JVM デプロイ単位（Cloud Run）。tapir HTTP サーバ。配下に `application`（ユースケース）/ `infrastructure`（Firestore JVM SDK・Postgres JDBC・GCS・tapir）/ `bootstrap`。
+- `apps/rmu` — Scala.js → Node デプロイ単位（Cloud Run）。Eventarc 起動の Read Model Updater。`domain.js` を共有、IO は Node facade（`@google-cloud/firestore`, `pg`）。
+- `apps/ui/web/viewer` — Next.js SSR（Firebase App Hosting）。
+- `apps/ui/web/editor` — Vite + React SPA（Firebase Hosting）。
+- `apps/ui/packages/api-client` — OpenAPI から生成した型 / クライアント（viewer・editor で共有）。
+- `apps/ui/cui` — v1 ではドロップ（プレースホルダ維持）。
+- `docs/` — 設計・図。
+
+`.gitkeep` は実体が入った時点で削除し、各 app に責務を説明する README を置く。
 
 ## Build, Test, and Development Commands
-Until automation is wired up, each app should expose a consistent set of npm scripts: `npm install` (bootstrap dependencies), `npm run dev` (start the local server or watcher), `npm run build` (produce deployable artifacts), and `npm test` (run unit suites). Add any app-specific flags inside the script definitions rather than at call sites. When you introduce repo-level tooling, wrap these scripts with a root `Makefile` target such as `make dev-web` or `make test-api` so agents have a single entry point.
+- Scala: ルートの単一 sbt ビルドで `sbt compile` / `sbt test`。モジュール指定は `sbt domain/test`、`sbt api/run` 等。RMU は Scala.js のため `sbt rmu/fastLinkJS`（dev）/ `rmu/fullLinkJS`（prod）。
+- UI: `apps/ui` で `pnpm install`、各 app で `pnpm dev` / `pnpm build` / `pnpm test` / `pnpm lint`。
+- 型生成: API の OpenAPI から `packages/api-client` を再生成（`pnpm gen:api`）。
+- リポジトリ全体のエントリは将来 root の `Makefile`（例 `make dev-api` / `make test-ui`）に集約する。
 
 ## Coding Style & Naming Conventions
-Default to TypeScript for both API and UI code, using 2-space indentation, trailing commas, and single quotes. Enforce formatting with Prettier and linting with ESLint in `--max-warnings=0` mode (`npm run lint`). Prefer `camelCase` for functions, `PascalCase` for React components or classes, and `kebab-case` for file/directory names. Keep environment variables scoped per app in `.env.local` files that are git-ignored.
+- Scala 3: scalafmt で整形。ドメインは純粋に保ち、IO は infrastructure に閉じる（ヘクサゴナル）。
+- TypeScript: Prettier + ESLint（`--max-warnings=0`）。2-space、single quote、trailing comma。
+- 命名: 関数 `camelCase`、型/コンポーネント/クラス `PascalCase`、ファイル/ディレクトリ `kebab-case`。
+- 環境変数は各 app にスコープし、`.env.local`（git-ignored）。
 
 ## Testing Guidelines
-Aim for fast unit coverage before merging. Co-locate unit specs in `tests` using the `*.spec.ts` suffix, and use `npm test -- --watch` while iterating. Add integration suites under `apps/api/tests` or `apps/ui/web/<app>/tests/integration`. Expand coverage reports to meet an 80% line target, and document any intentional gaps in the PR description.
+- Scala: **zio-test**。ドメイン（fold・不変条件）を重点的に。spec は対象モジュール配下。
+- TS: ユニットは `*.spec.ts` を co-locate、`apps/ui/web/<app>/tests/integration` に統合テスト。
+- マージ前に高速なユニットを通す。意図的なギャップは PR に記載。
 
 ## Commit & Pull Request Guidelines
-Follow Conventional Commits (`type(scope): short summary`) to keep history searchable. Every pull request should include: a succinct summary, links to tracking issues, setup notes for reviewers, and screenshots or GIFs for UI-facing work. Ensure CI (or local `npm test`/`npm run lint`) has run before requesting review, and update AGENTS.md whenever workflows change.
+- Conventional Commits（`type(scope): summary`）。
+- PR には概要・関連 issue・レビュー用セットアップ手順・UI 変更はスクリーンショットを含める。
+- ワークフローを変えたら本 AGENTS.md も更新する。
