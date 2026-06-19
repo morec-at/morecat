@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>morecat — アーキテクチャ図</title>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "base", themeVariables: {
+      fontFamily: "ui-sans-serif, system-ui, sans-serif",
+      primaryColor: "#eef2ff",
+      primaryBorderColor: "#6366f1",
+      primaryTextColor: "#1e1b4b",
+      lineColor: "#64748b"
+    }});
+  </script>
+  <style>
+    :root { --fg:#1e293b; --muted:#64748b; --bg:#f8fafc; --card:#fff; --accent:#6366f1; --border:#e2e8f0; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      line-height:1.7; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+    header h1 { font-size: 1.9rem; margin: 0 0 4px; }
+    header p { color: var(--muted); margin: 0 0 8px; }
+    .meta { font-size:.85rem; color:var(--muted); }
+    .meta a { color: var(--accent); }
+    section { background:var(--card); border:1px solid var(--border); border-radius:14px;
+      padding: 24px 28px; margin: 24px 0; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    section h2 { font-size:1.25rem; margin:0 0 4px; }
+    section .cap { color:var(--muted); margin:0 0 18px; font-size:.92rem; }
+    .mermaid { display:flex; justify-content:center; overflow-x:auto; }
+    .legend { display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:18px; font-size:.85rem; color:var(--muted); }
+    .legend span { display:inline-flex; align-items:center; gap:6px; }
+    .swatch { width:14px; height:14px; border-radius:3px; border:1px solid; }
+    .sw-gcp { background:#e0f2fe; border-color:#0ea5e9; }
+    .sw-fb  { background:#fff7ed; border-color:#f59e0b; }
+    .sw-cli { background:#f1f5f9; border-color:#94a3b8; }
+    .sw-ext { background:#f0fdf4; border-color:#22c55e; }
+    footer { color:var(--muted); font-size:.85rem; text-align:center; margin-top:40px; }
+    code { background:#f1f5f9; padding:1px 6px; border-radius:5px; font-size:.88em; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>morecat — アーキテクチャ図</h1>
+    <p>個人 CMS（ブログ記事 + 自己紹介）。Article は Event Sourcing / CQRS。</p>
+    <p class="meta">設計の詳細は <a href="./design.md">design.md</a> を参照 ／ v1</p>
+  </header>
+
+  <section>
+    <h2>1. システム全体トポロジ</h2>
+    <p class="cap">クライアント・Firebase・GCP・外部サービスの配置と主要な通信経路。実線=同期呼び出し、点線=非同期/通知。</p>
+    <div class="mermaid">
+flowchart LR
+  reader([読者<br/>Browser])
+  author([著者<br/>Browser])
+
+  subgraph FB["Firebase"]
+    viewer["viewer<br/>Next.js SSR + ISR<br/>(App Hosting)"]
+    editor["editor<br/>Vite + React SPA<br/>(Hosting)"]
+  end
+
+  subgraph EXT["External"]
+    gh["GitHub OAuth"]
+  end
+
+  subgraph GCP["Google Cloud"]
+    api["API<br/>Scala 3 / ZIO / tapir<br/>(Cloud Run)"]
+    rmu["RMU<br/>Scala.js → Node<br/>(Cloud Run)"]
+    fs[("Firestore<br/>Article イベントストア")]
+    sql[("Cloud SQL / Postgres<br/>読取モデル・Page・Tag")]
+    gcs[("GCS<br/>メディア")]
+    eva{{"Eventarc"}}
+  end
+
+  reader -->|HTTP| viewer
+  author -->|HTTP| editor
+  reader -. 画像 .-> gcs
+
+  viewer -->|"SSR/ISR fetch (クエリ)"| api
+  api -. "publish 時 revalidate webhook" .-> viewer
+
+  editor -->|"コマンド (httpOnly Cookie)"| api
+  editor -->|OAuth| gh
+  gh -. callback .-> api
+
+  api -->|"イベント append"| fs
+  api -->|"クエリ/読取"| sql
+  api -->|"プロキシ入稿"| gcs
+
+  fs -. "doc 作成" .-> eva
+  eva -. "push (at-least-once)" .-> rmu
+  rmu -->|"全ストリーム読取"| fs
+  rmu -->|"fold して upsert"| sql
+
+  classDef gcp fill:#e0f2fe,stroke:#0ea5e9,color:#0c4a6e;
+  classDef fb fill:#fff7ed,stroke:#f59e0b,color:#7c2d12;
+  classDef ext fill:#f0fdf4,stroke:#22c55e,color:#14532d;
+  classDef cli fill:#f1f5f9,stroke:#94a3b8,color:#334155;
+  class api,rmu,fs,sql,gcs,eva gcp;
+  class viewer,editor fb;
+  class gh ext;
+  class reader,author cli;
+    </div>
+    <div class="legend">
+      <span><span class="swatch sw-cli"></span>クライアント</span>
+      <span><span class="swatch sw-fb"></span>Firebase</span>
+      <span><span class="swatch sw-gcp"></span>Google Cloud</span>
+      <span><span class="swatch sw-ext"></span>外部サービス</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Article の Event Sourcing / CQRS フロー</h2>
+    <p class="cap">コマンド（書込）→ Firestore append → Eventarc 通知 → RMU が読取モデルを再構築、までの一連。outbox は使わない。</p>
+    <div class="mermaid">
+sequenceDiagram
+  autonumber
+  actor A as 著者 (editor)
+  participant API as API (Cloud Run)
+  participant FS as Firestore (events)
+  participant EV as Eventarc
+  participant RMU as RMU (Scala.js/Node)
+  participant SQL as Cloud SQL (読取モデル)
+
+  A->>API: コマンド (Drafted/Revised/Published/Unpublished)<br/>httpOnly Cookie
+  API->>FS: append event<br/>articles/[id]/events/[seq] (create-only=楽観ロック)
+  alt seq 衝突
+    FS-->>API: 既存 → 並行競合
+    API-->>A: 409 Conflict
+  else 成功
+    FS-->>API: ok
+    API-->>A: 200 OK
+  end
+
+  Note over FS,EV: doc 作成を検知
+  FS-)EV: doc created
+  EV-)RMU: push (at-least-once / 順不同)
+  RMU->>FS: その articleId の全イベントを読取
+  RMU->>RMU: domain.js で fold（プロジェクション再構築）
+  RMU->>SQL: upsert（lastAppliedSeq で古い適用を skip）
+
+  Note over A,SQL: 読取は別経路（CQRS）。公開操作時に API が viewer へ revalidate webhook を送る
+    </div>
+  </section>
+
+  <section>
+    <h2>3. 読者リクエスト（読取経路）</h2>
+    <p class="cap">公開ページの表示。viewer は ISR でキャッシュし、公開時の on-demand revalidate で即時反映。</p>
+    <div class="mermaid">
+sequenceDiagram
+  autonumber
+  actor R as 読者
+  participant V as viewer (Next.js / App Hosting)
+  participant API as API (Cloud Run)
+  participant SQL as Cloud SQL (読取モデル)
+  participant GCS as GCS (メディア)
+
+  R->>V: GET /posts/[slug]
+  alt ISR キャッシュ有効
+    V-->>R: キャッシュ済み HTML
+  else 再生成
+    V->>API: GET 記事 (クエリ)
+    API->>SQL: SELECT (プロジェクション)
+    SQL-->>API: 記事データ
+    API-->>V: JSON
+    V-->>R: SSR HTML
+  end
+  R->>GCS: 画像取得（公開読取）
+    </div>
+  </section>
+
+  <footer>
+    morecat architecture — Mermaid (CDN) で描画。オフライン表示が必要なら SVG 書き出しに切替可。
+  </footer>
+</div>
+</body>
+</html>
