@@ -40,12 +40,12 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
 - **domain**: イベントは `ArticleDrafted` ＋ `ArticlePublished`。`Slug` / `NonEmptyTitle`（Iron + smart constructor）、`fold`（`status` を含む投影）、zio-json codec、`schemaVersion`
 - **API（コマンド）**:
   - `POST /articles`（draft 作成）— Firestore に seq=1 を **create-only 楽観ロック** で append ＋ `slugs/{slug}` 予約を**同一 Tx**で実施。衝突は **409**
-  - publish コマンド（`ArticlePublished` を append）
+  - publish コマンド `POST /articles/{id}/publish`（`ArticlePublished` を append）。**期待バージョン必須**（楽観ロック）、**未作成 id は 404**、**draft 以外（既公開）からの publish は冪等 or 409 として扱う**、`publishedAt` は**サーバ時刻で採番**（クライアント値を信頼しない）
   - 認証境界（`Authenticator` port + Bearer middleware）
   - **HTTP 境界の入力検証**: 400/409 の切り分け、body / Markdown サイズ上限、未知 JSON フィールド・`schemaVersion` 不一致の拒否、Firestore doc id として危険な slug 文字の拒否、SQL パラメータ化
 - **API（クエリ）**: `GET /articles/{slug}` — Postgres から。**published のみ返却、draft / 不在は 404**。CORS 方針を明記
-- **RMU**: `articleId` 受領 → 全ストリーム再読込 → fold → Postgres upsert（`lastAppliedSeq` で古い適用を skip）。**失敗時運用**: リトライ上限・DLQ・無効 payload のログ・**手動 replay 導線（Job/CLI の最小版）**
-- **viewer**: `/posts/{slug}` を SSR で API 経由 1 件表示（published のみ）。**ISR/revalidate なし**（毎回ライブ読み）
+- **RMU**: `articleId` 受領 → 全ストリーム再読込 → fold → Postgres upsert（`lastAppliedSeq` で古い適用を skip）。**Eventarc payload 検証**: `articleId` の形式検証、対象パスが `articles/{id}/events/{seq}` であることの確認、`slugs/*` 等の非対象 doc を拒否（payload を鵜呑みにしない）。**失敗時運用**: リトライ上限・DLQ・無効 payload のログ・**手動 replay 導線（Job/CLI の最小版）**
+- **viewer**: `/posts/{slug}` を SSR で API 経由 1 件表示（published のみ）。**本文 Markdown(GFM) → HTML 化時に `rehype-sanitize`（拡張 allowlist）で sanitization**（設計 §5。XSS を後続扱いにしない）。**ISR/revalidate なし**（毎回ライブ読み）
 - **型契約**: 上記 endpoint の最小 OpenAPI 生成 → `packages/api-client`
 - **Postgres**: articles 投影テーブル（`status`・`slug` unique 含む）の Flyway マイグレーション1本
 - **インフラ**: Terraform でリソース宣言、GitHub Actions で build+test+本番自動デプロイ（IAM 最小権限・WIF・protected environment 含む。詳細は §4）
@@ -62,6 +62,10 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
 
 順序の眼目: 純粋 domain は全依存の土台かつ単体テストで速く固まる。次にローカル貫通で正しさを確認し、最後に Terraform/CI でデプロイ面を被せて、アプリの正しさとインフラ問題を切り分ける。
 
+本スライスは実装量が大きいため、**2つのマイルストーンに分割**する（codex 指摘）。**マイルストーン A（タスク 1〜5）でローカル End-to-End 貫通**、**マイルストーン B（タスク 6）で本番デプロイ**。A 完了を中間ゲートとし、A が緑になってから B に進む。
+
+### マイルストーン A — ローカル End-to-End 貫通
+
 1. **`modules/domain`（crossProject .jvm / .js）**
    - `ArticleDrafted` / `ArticlePublished`、`Slug` / `NonEmptyTitle`（Iron + smart constructor）、`fold`（`status` 反映）、zio-json codec、`schemaVersion`
    - *DoD*: zio-test で fold と VO 不変条件が緑（jvm / js 両方コンパイル）。**ライブラリ組み合わせが解決・コンパイルできることを確認**
@@ -72,19 +76,25 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
      - エミュレータで draft 作成 → 公開 → Firestore に append。トークン無し/不正 = 401
      - `GET` は published のみ返し draft / 不在 = 404
      - **テスト群**: ① seq=1 二重 append が並行競合で失敗 ② 期待バージョン不一致の append 失敗 ③ 同一 articleId の再送が冪等 ④ **slug 予約の原子性**（append 失敗時に slug 予約が残らない／同一 slug の競合は 409）
+     - **publish 不変条件テスト**: 未作成 id は 404／draft 以外からの publish は冪等 or 409／期待バージョン不一致は失敗／`publishedAt` がサーバ時刻で採番される
      - 入力検証（サイズ上限・未知フィールド・危険な slug 文字）の拒否テスト
 
 3. **`apps/rmu`（Scala.js → Node, Cloud Run）**
-   - Eventarc / ブリッジ受信 → 全ストリーム再読込 fold → Postgres upsert（`lastAppliedSeq` で skip）。Firestore / pg は Node facade。失敗時運用（リトライ/DLQ/無効 payload ログ/手動 replay）
-   - *DoD*: `articleId` POST で Postgres に upsert。冪等（再送で重複しない）。**無効 payload は DLQ 行き＋ログ**。手動 replay（全 Firestore イベント → Postgres 再構築）の最小手順が動く
+   - Eventarc / ブリッジ受信 → 全ストリーム再読込 fold → Postgres upsert（`lastAppliedSeq` で skip）。Firestore / pg は Node facade。**payload 検証**（`articleId` 形式・対象パス `articles/{id}/events/{seq}`・`slugs/*` 拒否）。失敗時運用（リトライ/DLQ/無効 payload ログ/手動 replay）
+   - *DoD*: `articleId` POST で Postgres に upsert。冪等（再送で重複しない）。**不正な articleId / 非対象パスの payload を拒否**。**無効 payload は DLQ 行き＋ログ**。手動 replay（全 Firestore イベント → Postgres 再構築）の最小手順が動く
 
 4. **`packages/api-client`（最小 OpenAPI 生成）**
    - API の OpenAPI から `POST /articles`・publish・`GET /articles/{slug}` の型 / クライアントを生成
    - *DoD*: viewer から生成クライアント経由で型安全に呼べる
 
-5. **ローカル貫通**
-   - CDC ブリッジ（emulator listener → RMU）で `POST /articles` → publish → Firestore → RMU → Postgres → `GET /articles/{slug}` → viewer `/posts/{slug}` SSR 表示（published のみ）
-   - *DoD*: ローカルで 1〜5 が一気通貫
+5. **viewer + ローカル貫通**
+   - viewer `/posts/{slug}`: SSR で api-client 経由取得 → Markdown(GFM) を **`rehype-sanitize`（拡張 allowlist）で sanitization** して HTML 化（published のみ）
+   - CDC ブリッジ（emulator listener → RMU）で `POST /articles` → publish → Firestore → RMU → Postgres → `GET /articles/{slug}` → viewer `/posts/{slug}` SSR 表示
+   - *DoD*: ローカルで 1〜5 が一気通貫。**悪意ある Markdown（`<script>`・`onerror` 等）が sanitize され描画されないテスト**
+
+> **中間ゲート**: ここでマイルストーン A 完了。ローカルで End-to-End が緑になってから B（本番デプロイ）へ進む。
+
+### マイルストーン B — 本番デプロイ
 
 6. **Terraform + GitHub Actions（IAM / シークレット / CI 安全性込み）**
    - リソース宣言: Firestore / Cloud SQL / Cloud Run×2 / Eventarc / App Hosting / Artifact Registry / Secret Manager
@@ -96,14 +106,18 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
 
 ## 4. セキュリティ要件（横断・codex 指摘反映）
 
-- **認可境界**: コマンド endpoint は Bearer 必須。公開クエリ（`GET /articles/{slug}`）は認証不要だが **published のみ・draft 非返却・不在は 404**。レート制限 / Cloud Armor は後続（理由を残す）
+- **認可境界**: コマンド endpoint は Bearer 必須。公開クエリ（`GET /articles/{slug}`）は認証不要だが **published のみ・draft 非返却・不在は 404**
+- **XSS / sanitization**: viewer は本文 HTML 化時に **`rehype-sanitize`（拡張 allowlist）必須**（設計 §5）。walking skeleton でも後続扱いにしない
 - **シークレット**: Bearer トークン・DB 接続情報は Secret Manager。Terraform state / GitHub Secrets に平文を置かない。ログ漏洩防止。失効・ローテーション手順を残す
-- **IAM 最小権限**: サービスごとに SA を分離。RMU は Eventarc SA からのみ invoke 可（公開しない）
+- **IAM 最小権限**: サービスごとに SA を分離。RMU は Eventarc SA からのみ invoke 可（公開しない）。さらに RMU は **Eventarc payload を信頼せず検証**（`articleId` 形式・対象パス・非対象 doc 拒否）
 - **CI/CD**: Workload Identity Federation、静的キー禁止、本番は protected environment、apply 権限分離
+- **後続に送る項目（理由を明記）**: Bearer は単一トークンで blast radius が大きく期限なしのため、**Cloud Logging での認証失敗監視・レート制限 / Cloud Armor** は後続スライスで導入（個人 CMS の slice 1 としては許容、導入条件を残す）。最終形は GitHub OAuth + 署名 Cookie への差し替え
 
 ## 5. revalidate 移行条件（OUT だが制約を明記）
 
 スライス1の `viewer = 毎回ライブ読み（ISR/revalidate なし）` は簡略化。設計（§8）の「RMU upsert 後に revalidate」と意図的に異なるため、後続で ISR を導入する際は **revalidate を API ではなく RMU 側に置く**（投影更新後に発火）制約を守り、stale cache 競合を再導入しないこと。
+
+> 注: `docs/design.md` / `docs/architecture.html` は `ISR + RMU revalidate` 前提で書かれているため、構成図だけ見た実装者が slice 1 に revalidate を入れないよう、**「slice 1 は意図的にライブ読み」を PR 本文・着手 issue に明示**する。
 
 ## 6. 既知のリスク（実装時に注意・現時点で決定不要）
 
