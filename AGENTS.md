@@ -37,3 +37,10 @@
 - Conventional Commits（`type(scope): summary`）。
 - PR には概要・関連 issue・レビュー用セットアップ手順・UI 変更はスクリーンショットを含める。
 - ワークフローを変えたら本 AGENTS.md も更新する。
+- GitHub Actions（`.github/workflows/`）で参照する Action は**コミット SHA で固定**（末尾コメントにバージョン目安）。
+
+## 自動レビュー（codex）
+- 全 PR は `.github/workflows/codex-review.yml`（公式 `openai/codex-action`）で **codex の自動レビューが必須実行**され、結果が PR にスティッキーコメントとして残る。
+- レビュー観点: `docs/design.md`・`docs/slice-1-plan.md` との整合 / 正しさ / セキュリティ / スコープ逸脱。
+- 必要な設定: リポジトリ Secret **`OPENAI_API_KEY`**（未設定だと CI は失敗する＝レビューを黙ってスキップしない）。
+- ジョブは review（`contents:read` で codex 実行）と post（`pull-requests:write` でコメント投稿）に分離し、codex 実行中は PR 書込権限を渡さない。
