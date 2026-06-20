@@ -40,11 +40,11 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
 - **domain**: イベントは `ArticleDrafted` ＋ `ArticlePublished`。`Slug` / `NonEmptyTitle`（Iron + smart constructor）、`fold`（`status` を含む投影）、zio-json codec、`schemaVersion`
 - **API（コマンド）**:
   - `POST /articles`（draft 作成）— Firestore に seq=1 を **create-only 楽観ロック** で append ＋ `slugs/{slug}` 予約を**同一 Tx**で実施。衝突は **409**
-  - publish コマンド `POST /articles/{id}/publish`（`ArticlePublished` を append）。**期待バージョン必須**（楽観ロック）、**未作成 id は 404**、**draft 以外（既公開）からの publish は冪等 or 409 として扱う**、`publishedAt` は**サーバ時刻で採番**（クライアント値を信頼しない）
+  - publish コマンド `POST /articles/{id}/publish`（`ArticlePublished` を append）。**期待バージョン必須**（楽観ロック）、**未作成 id は 404**、**既公開への再 publish は冪等成功（200/204・新イベント append なし・no-op）**、`publishedAt` は**サーバ時刻で採番**（クライアント値を信頼しない）
   - 認証境界（`Authenticator` port + Bearer middleware）
   - **HTTP 境界の入力検証**: 400/409 の切り分け、body / Markdown サイズ上限、未知 JSON フィールド・`schemaVersion` 不一致の拒否、Firestore doc id として危険な slug 文字の拒否、SQL パラメータ化
 - **API（クエリ）**: `GET /articles/{slug}` — Postgres から。**published のみ返却、draft / 不在は 404**。CORS 方針を明記
-- **RMU**: `articleId` 受領 → 全ストリーム再読込 → fold → Postgres upsert（`lastAppliedSeq` で古い適用を skip）。**Eventarc payload 検証**: `articleId` の形式検証、対象パスが `articles/{id}/events/{seq}` であることの確認、`slugs/*` 等の非対象 doc を拒否（payload を鵜呑みにしない）。**失敗時運用**: リトライ上限・DLQ・無効 payload のログ・**手動 replay 導線（Job/CLI の最小版）**
+- **RMU**: `articleId` 受領 → 全ストリーム再読込 → fold → Postgres upsert（`lastAppliedSeq` で古い適用を skip）。**Eventarc payload 検証**: `articleId` の形式検証、対象パスが `articles/{id}/events/{seq}` であることの確認、`slugs/*` 等の非対象 doc を拒否（payload を鵜呑みにしない）。**ACK/NACK 方針**（Pub/Sub push は 2xx=ACK / それ以外=NACK→再送→DLQ の二値）: **恒久エラー（構造的に無効・非対象 payload）は 2xx で ACK ＋ 自前 dead-letter（ログ/テーブル）に記録**して再送を止める／**一過性失敗（Firestore 読取・Postgres upsert エラー）は 5xx で NACK → Eventarc リトライ → 上限超過で DLQ**。**手動 replay 導線（Job/CLI の最小版）**
 - **viewer**: `/posts/{slug}` を SSR で API 経由 1 件表示（published のみ）。**本文 Markdown(GFM) → HTML 化時に `rehype-sanitize`（拡張 allowlist）で sanitization**（設計 §5。XSS を後続扱いにしない）。**ISR/revalidate なし**（毎回ライブ読み）
 - **型契約**: 上記 endpoint の最小 OpenAPI 生成 → `packages/api-client`
 - **Postgres**: articles 投影テーブル（`status`・`slug` unique 含む）の Flyway マイグレーション1本
@@ -76,12 +76,16 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
      - エミュレータで draft 作成 → 公開 → Firestore に append。トークン無し/不正 = 401
      - `GET` は published のみ返し draft / 不在 = 404
      - **テスト群**: ① seq=1 二重 append が並行競合で失敗 ② 期待バージョン不一致の append 失敗 ③ 同一 articleId の再送が冪等 ④ **slug 予約の原子性**（append 失敗時に slug 予約が残らない／同一 slug の競合は 409）
-     - **publish 不変条件テスト**: 未作成 id は 404／draft 以外からの publish は冪等 or 409／期待バージョン不一致は失敗／`publishedAt` がサーバ時刻で採番される
+     - **publish 不変条件テスト**: 未作成 id は 404／既公開への再 publish は冪等成功（200/204・新イベントが増えない）／期待バージョン不一致は失敗／`publishedAt` がサーバ時刻で採番される
      - 入力検証（サイズ上限・未知フィールド・危険な slug 文字）の拒否テスト
 
 3. **`apps/rmu`（Scala.js → Node, Cloud Run）**
-   - Eventarc / ブリッジ受信 → 全ストリーム再読込 fold → Postgres upsert（`lastAppliedSeq` で skip）。Firestore / pg は Node facade。**payload 検証**（`articleId` 形式・対象パス `articles/{id}/events/{seq}`・`slugs/*` 拒否）。失敗時運用（リトライ/DLQ/無効 payload ログ/手動 replay）
-   - *DoD*: `articleId` POST で Postgres に upsert。冪等（再送で重複しない）。**不正な articleId / 非対象パスの payload を拒否**。**無効 payload は DLQ 行き＋ログ**。手動 replay（全 Firestore イベント → Postgres 再構築）の最小手順が動く
+   - Eventarc / ブリッジ受信 → 全ストリーム再読込 fold → Postgres upsert（`lastAppliedSeq` で skip）。Firestore / pg は Node facade。**payload 検証**（`articleId` 形式・対象パス `articles/{id}/events/{seq}`・`slugs/*` 拒否）。**ACK/NACK 方針**: 恒久エラー=2xx ACK+自前 dead-letter 記録／一過性失敗=5xx NACK→リトライ→DLQ。手動 replay
+   - *DoD*:
+     - `articleId` POST で Postgres に upsert。冪等（再送で重複しない）
+     - **実 CloudEvent 形式の fixture** で path 抽出・検証をテスト: 正常 `articles/{id}/events/{seq}` は処理、`slugs/*` や不正 `articleId` は **2xx ACK + dead-letter 記録**（再送されない）
+     - 一過性失敗（upsert エラー等）は **5xx を返し再送/DLQ に乗る**ことをテスト
+     - 手動 replay（全 Firestore イベント → Postgres 再構築）の最小手順が動く
 
 4. **`packages/api-client`（最小 OpenAPI 生成）**
    - API の OpenAPI から `POST /articles`・publish・`GET /articles/{slug}` の型 / クライアントを生成
