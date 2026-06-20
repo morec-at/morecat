@@ -1,0 +1,101 @@
+name: codex-review
+
+# PR のたびに codex に差分をレビューさせ、結果を PR コメントに残す（常時実施のハード強制）。
+# 公式 Action openai/codex-action を使用。
+# 必要な設定: リポジトリ Secret `OPENAI_API_KEY`（Settings → Secrets and variables → Actions）。
+#   未設定の場合はジョブを失敗させる（レビューを黙ってスキップしない）。
+# ジョブ分離: review は contents:read のみで codex を実行（PR 書込権限を渡さない）。
+#            post は pull-requests:write でスティッキーコメントを upsert。
+# Action はサプライチェーン保護のためコミット SHA で固定（末尾コメントはバージョン目安）。
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# 同一 PR で新しい push が来たら古いレビュー実行はキャンセル
+concurrency:
+  group: codex-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      final_message: ${{ steps.run_codex.outputs.final-message }}
+    steps:
+      - name: Require OPENAI_API_KEY
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::OPENAI_API_KEY が未設定です。Settings → Secrets and variables → Actions に登録してください。"
+            exit 1
+          fi
+
+      - name: Checkout (full history for diff)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          # read-only sandbox から .git/config の checkout トークンを読めないようにする
+          persist-credentials: false
+
+      - name: Run codex review
+        id: run_codex
+        uses: openai/codex-action@e0fdf01220eb9a88167c4898839d273e3f2609d1 # v1.8
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          model: gpt-5.4-mini
+          sandbox: read-only
+          output-file: codex-output.md
+          # base/head の SHA のみ補間（PR タイトル/本文は injection 防止のため埋め込まない）。
+          # merge コミット側の HEAD ではなく実 head.sha を対象にし差分のズレを防ぐ。
+          prompt: |
+            あなたはこのリポジトリのコードレビュアーです。`git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}` の差分をレビューしてください。ファイルは一切変更しないこと。出力は GitHub PR コメントに貼る Markdown 本文のみ（前置き/後置き不要）。
+
+            観点:
+            (1) docs/design.md・docs/slice-1-plan.md の確定設計/計画との整合（ヘクサゴナル境界、Article の Event Sourcing/CQRS、slug 一意性・公開/下書き境界・認可境界）
+            (2) 正しさ・バグ・エッジケース
+            (3) セキュリティ（認証/認可、シークレット取り扱い、入力検証、XSS/sanitization、IAM 最小権限）
+            (4) スコープ/設計逸脱、テストの過不足
+
+            各指摘に重大度（High/Medium/Low）を付け、ファイル:行で参照。良い点も簡潔に。指摘が無ければ「重大な問題なし」と明記。日本語で。
+
+  post:
+    runs-on: ubuntu-latest
+    needs: review
+    if: needs.review.outputs.final_message != ''
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post or update sticky PR comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CODEX_FINAL_MESSAGE: ${{ needs.review.outputs.final_message }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            const marker = '<!-- codex-review -->';
+            const body = [
+              marker,
+              '## 🤖 codex 自動レビュー',
+              '',
+              `_commit \`${process.env.HEAD_SHA}\` / workflow: codex-review_`,
+              '',
+              '---',
+              '',
+              process.env.CODEX_FINAL_MESSAGE,
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find((c) => c.body && c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
