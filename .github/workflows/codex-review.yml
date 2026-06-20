@@ -44,6 +44,7 @@ jobs:
         uses: openai/codex-action@e0fdf01220eb9a88167c4898839d273e3f2609d1 # v1.8
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          model: gpt-5.4-mini
           sandbox: read-only
           output-file: codex-output.md
           # base.ref（ブランチ名）のみ補間。PR タイトル/本文は injection 防止のため埋め込まない。
