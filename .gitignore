@@ -1,0 +1,17 @@
+# Scala / sbt
+target/
+project/target/
+project/project/
+.bsp/
+# Scala.js
+*.js.map
+# Metals / IDE
+.metals/
+.bloop/
+.idea/
+# OS
+.DS_Store
+
+# Nix
+result
+result-*

@@ -3,11 +3,10 @@
 設計の全体像は `docs/design.md`、構成図は `docs/architecture.html` を参照。本ファイルは貢献者 / エージェント向けの作業ガイド。
 
 ## Project Structure & Module Organization
-モノレポ。Scala バックエンドは **単一 sbt ビルド**、UI は **pnpm workspace**。
+モノレポ。コードは `apps/` 配下に集約（リポジトリ直下は `docs/` と meta のみ）。Scala バックエンドは **単一 sbt ビルド**（ビルドルート=`apps/`、`apps/build.sbt` + `apps/project/`）、UI は **pnpm workspace**。dev 環境はルートの `flake.nix`（`nix develop`）。
 
-- `modules/domain` — crossProject(`.jvm` / `.js`)。Article イベント ADT・値オブジェクト(Iron)・projection fold(純粋)・JSON codec。API と RMU で共有する唯一の Scala コード。
-- `apps/api` — JVM デプロイ単位（Cloud Run）。tapir HTTP サーバ。配下に `application`（ユースケース）/ `infrastructure`（Firestore JVM SDK・Postgres JDBC・GCS・tapir）/ `bootstrap`。
-- `apps/rmu` — Scala.js → Node デプロイ単位（Cloud Run）。Eventarc 起動の Read Model Updater。`domain.js` を共有、IO は Node facade（`@google-cloud/firestore`, `pg`）。
+- `apps/api` — JVM デプロイ単位（Cloud Run）。sbt ビルドルート。tapir HTTP サーバ。サブプロジェクト: `domain`（純粋: Article イベント ADT・値オブジェクト(Iron)・fold・JSON codec。IO 依存を載せない）/ `application`（ユースケース）/ `infrastructure`（Firestore JVM SDK・Postgres・GCS・tapir）/ `bootstrap`。
+- `apps/rmu` — **Rust** デプロイ単位（Cloud Run, Cargo）。Eventarc 起動の Read Model Updater。axum + serde + sqlx + Firestore クレート。ドメインは API と**コード共有せず**、イベント wire スキーマを契約フィクスチャで整合。
 - `apps/ui/web/viewer` — Next.js SSR（Firebase App Hosting）。
 - `apps/ui/web/editor` — Vite + React SPA（Firebase Hosting）。
 - `apps/ui/packages/api-client` — OpenAPI から生成した型 / クライアント（viewer・editor で共有）。
@@ -17,7 +16,9 @@
 `.gitkeep` は実体が入った時点で削除し、各 app に責務を説明する README を置く。
 
 ## Build, Test, and Development Commands
-- Scala: ルートの単一 sbt ビルドで `sbt compile` / `sbt test`。モジュール指定は `sbt domain/test`、`sbt api/run` 等。RMU は Scala.js のため `sbt rmu/fastLinkJS`（dev）/ `rmu/fullLinkJS`（prod）。
+- 開発環境: ルートで `nix develop`（flake で JDK 25 / sbt / Node / Rust を固定。Scala 3.8 系は JDK 17+ 必須なので JDK は nix で揃える）。以降のコマンドは dev shell 内で実行する。
+- API(Scala): sbt ビルドルートは `apps/api`。`cd apps/api` してから `sbt compile` / `sbt test`。純粋ドメインだけは `sbt domain/test`。`api/run` 等は今後追加。
+- RMU(Rust): `cd apps/rmu` で `cargo build` / `cargo test`（実装はタスク3以降）。
 - UI: `apps/ui` で `pnpm install`、各 app で `pnpm dev` / `pnpm build` / `pnpm test` / `pnpm lint`。
 - 型生成: API の OpenAPI から `packages/api-client` を再生成（`pnpm gen:api`）。
 - リポジトリ全体のエントリは将来 root の `Makefile`（例 `make dev-api` / `make test-ui`）に集約する。
