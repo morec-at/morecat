@@ -38,6 +38,8 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
+          # read-only sandbox から .git/config の checkout トークンを読めないようにする
+          persist-credentials: false
 
       - name: Run codex review
         id: run_codex
@@ -47,9 +49,10 @@ jobs:
           model: gpt-5.4-mini
           sandbox: read-only
           output-file: codex-output.md
-          # base.ref（ブランチ名）のみ補間。PR タイトル/本文は injection 防止のため埋め込まない。
+          # base/head の SHA のみ補間（PR タイトル/本文は injection 防止のため埋め込まない）。
+          # merge コミット側の HEAD ではなく実 head.sha を対象にし差分のズレを防ぐ。
           prompt: |
-            あなたはこのリポジトリのコードレビュアーです。`git diff origin/${{ github.event.pull_request.base.ref }}...HEAD` の差分をレビューしてください。ファイルは一切変更しないこと。出力は GitHub PR コメントに貼る Markdown 本文のみ（前置き/後置き不要）。
+            あなたはこのリポジトリのコードレビュアーです。`git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}` の差分をレビューしてください。ファイルは一切変更しないこと。出力は GitHub PR コメントに貼る Markdown 本文のみ（前置き/後置き不要）。
 
             観点:
             (1) docs/design.md・docs/slice-1-plan.md の確定設計/計画との整合（ヘクサゴナル境界、Article の Event Sourcing/CQRS、slug 一意性・公開/下書き境界・認可境界）
