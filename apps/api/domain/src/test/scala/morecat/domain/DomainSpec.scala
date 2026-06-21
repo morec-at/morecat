@@ -1,6 +1,5 @@
 package morecat.domain
 
-import zio.json.*
 import zio.test.*
 
 object DomainSpec extends ZIOSpecDefault:
@@ -52,31 +51,13 @@ object DomainSpec extends ZIOSpecDefault:
         assertTrue(Article.fold(id, events).exists(_.slug == Slug.applyUnsafe("first")))
       },
       test("re-publish is idempotent (no extra state change)") {
-        val draft     = ArticleDrafted(Slug.applyUnsafe("p"), NonEmptyTitle.applyUnsafe("P"), "b")
-        val once      = Article.fold(id, List(draft, ArticlePublished(5L)))
-        val twice     = Article.fold(id, List(draft, ArticlePublished(5L), ArticlePublished(5L)))
+        val draft = ArticleDrafted(Slug.applyUnsafe("p"), NonEmptyTitle.applyUnsafe("P"), "b")
+        val once  = Article.fold(id, List(draft, ArticlePublished(5L)))
+        val twice = Article.fold(id, List(draft, ArticlePublished(5L), ArticlePublished(5L)))
         assertTrue(once == twice)
       },
       test("empty stream yields none") {
         assertTrue(Article.fold(id, Nil).isEmpty)
-      },
-    ),
-    suite("codec")(
-      test("drafted event round-trips through json") {
-        val event: ArticleEvent =
-          ArticleDrafted(Slug.applyUnsafe("my-post"), NonEmptyTitle.applyUnsafe("My Post"), "body")
-        assertTrue(event.toJson.fromJson[ArticleEvent] == Right(event))
-      },
-      test("published event round-trips through json") {
-        val event: ArticleEvent = ArticlePublished(1234L)
-        assertTrue(event.toJson.fromJson[ArticleEvent] == Right(event))
-      },
-      test("discriminator field is present") {
-        assertTrue((ArticlePublished(1L): ArticleEvent).toJson.contains("\"type\""))
-      },
-      test("invalid slug is rejected when decoding") {
-        val json = """{"type":"ArticleDrafted","slug":"Bad Slug","title":"T","body":"b","schemaVersion":1}"""
-        assertTrue(json.fromJson[ArticleEvent].isLeft)
       },
     ),
   )

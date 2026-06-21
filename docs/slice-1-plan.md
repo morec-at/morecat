@@ -35,7 +35,7 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
 ## 2. スコープ（IN / OUT）
 
 ### IN
-- **domain**: イベントは `ArticleDrafted` ＋ `ArticlePublished`。`Slug` / `NonEmptyTitle`（Iron + smart constructor）、`fold`（`status` を含む投影）、zio-json codec、`schemaVersion`
+- **domain**（純粋）: イベントは `ArticleDrafted` ＋ `ArticlePublished`。`Slug` / `NonEmptyTitle`（Iron + smart constructor）、`fold`（`status` を含む投影）、`schemaVersion`。**JSON codec は持たない**（infrastructure 層へ）
 - **API（コマンド）**:
   - `POST /articles`（draft 作成）— Firestore に seq=1 を **create-only 楽観ロック** で append ＋ `slugs/{slug}` 予約を**同一 Tx**で実施。衝突は **409**
   - publish コマンド `POST /articles/{id}/publish`（`ArticlePublished` を append）。**期待バージョン必須**（楽観ロック）、**未作成 id は 404**、**既公開への再 publish は冪等成功（200/204・新イベント append なし・no-op）**、`publishedAt` は**サーバ時刻で採番**（クライアント値を信頼しない）
@@ -65,8 +65,8 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
 ### マイルストーン A — ローカル End-to-End 貫通
 
 1. **`apps/api/domain`（JVM 純粋サブプロジェクト）** ✅ 実装済み
-   - `ArticleDrafted` / `ArticlePublished`、`Slug` / `NonEmptyTitle`（Iron + smart constructor）、`fold`（`status` 反映）、zio-json codec、`schemaVersion`
-   - *DoD*: zio-test で fold と VO 不変条件が緑。**ライブラリ組み合わせ（Scala 3.8.4 / Iron 3.3.1 等）の解決・コンパイル確認** → 達成（11 件緑）
+   - `ArticleDrafted` / `ArticlePublished`、`Slug` / `NonEmptyTitle`（Iron + smart constructor）、`fold`（`status` 反映, `Seq` で順序を型に明示）、`schemaVersion`。**純粋（JSON codec は infrastructure へ）**
+   - *DoD*: zio-test で fold と VO 不変条件が緑。**ライブラリ組み合わせ（Scala 3.8.4 / Iron 3.3.1 等）の解決・コンパイル確認** → 達成（7 件緑）。JSON codec / round-trip テストはタスク2（infrastructure）で実装
 
 2. **`apps/api`（JVM, Cloud Run）**
    - Firestore append（doc id = seq の create-only 楽観ロック）＋ `slugs/{slug}` 予約を**同一 Tx**／publish コマンド／`Authenticator` port + Bearer middleware／`GET /articles/{slug}`（Magnum + magnum-zio、published のみ）／入力検証／tapir + zio-http → OpenAPI

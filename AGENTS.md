@@ -5,7 +5,7 @@
 ## Project Structure & Module Organization
 モノレポ。コードは `apps/` 配下に集約（リポジトリ直下は `docs/` と meta のみ）。Scala バックエンドは **単一 sbt ビルド**（ビルドルート=`apps/`、`apps/build.sbt` + `apps/project/`）、UI は **pnpm workspace**。dev 環境はルートの `flake.nix`（`nix develop`）。
 
-- `apps/api` — JVM デプロイ単位（Cloud Run）。sbt ビルドルート。tapir HTTP サーバ。サブプロジェクト: `domain`（純粋: Article イベント ADT・値オブジェクト(Iron)・fold・JSON codec。IO 依存を載せない）/ `application`（ユースケース）/ `infrastructure`（Firestore JVM SDK・Postgres・GCS・tapir）/ `bootstrap`。
+- `apps/api` — JVM デプロイ単位（Cloud Run）。sbt ビルドルート。tapir HTTP サーバ。サブプロジェクト: `domain`（純粋: Article イベント ADT・値オブジェクト(Iron)・fold。IO や wire フォーマットを持たない）/ `application`（ユースケース）/ `infrastructure`（Firestore JVM SDK・Postgres・GCS・tapir・**JSON codec**）/ `bootstrap`。
 - `apps/rmu` — **Rust** デプロイ単位（Cloud Run, Cargo）。Eventarc 起動の Read Model Updater。axum + serde + sqlx + Firestore クレート。ドメインは API と**コード共有せず**、イベント wire スキーマを契約フィクスチャで整合。
 - `apps/ui/web/viewer` — Next.js SSR（Firebase App Hosting）。
 - `apps/ui/web/editor` — Vite + React SPA（Firebase Hosting）。
@@ -26,7 +26,8 @@
 ## Coding Style & Naming Conventions
 - Scala 3: scalafmt で整形。ドメインは純粋に保ち、IO は infrastructure に閉じる（ヘクサゴナル）。
 - TypeScript: Prettier + ESLint（`--max-warnings=0`）。2-space、single quote、trailing comma。
-- 命名: 関数 `camelCase`、型/コンポーネント/クラス `PascalCase`、ファイル/ディレクトリ `kebab-case`。
+- 命名: 関数 `camelCase`、型/コンポーネント/クラス `PascalCase`。
+  - ファイル: **Scala は主要な型に対応する `PascalCase`**（例 `Article.scala`）。**TS / ディレクトリは `kebab-case`**。
 - 環境変数は各 app にスコープし、`.env.local`（git-ignored）。
 
 ## Testing Guidelines

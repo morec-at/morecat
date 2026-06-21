@@ -192,7 +192,7 @@ flake.lock
 apps/                       コード（言語ごとに独立ビルド）
   api/                      JVM deployable: tapir HTTP サーバ（Cloud Run）。sbt ビルドルート
     build.sbt / project/    単一 sbt ビルド（api のサブプロジェクト群を集約）
-    domain/                 純粋サブプロジェクト: Article イベント ADT・値オブジェクト(Iron)・projection fold・JSON codec(zio-json)。IO 依存を載せない
+    domain/                 純粋サブプロジェクト: Article イベント ADT・値オブジェクト(Iron)・projection fold。IO や wire フォーマット(JSON 等)を持たない
     application/            ユースケース（コマンド/クエリ）
     infrastructure/         Firestore(JVM SDK)・Postgres・GCS・tapir
     bootstrap/              ZLayer 配線・エントリポイント
@@ -217,7 +217,7 @@ docs/
 
 ## 11. 定石で進める項目（推奨デフォルト・未確定の細部）
 
-- JSON コーデック: **zio-json + iron** 連携
+- JSON コーデック: **zio-json + iron**（iron-zio-json）連携。**infrastructure 層**に置く（domain は wire フォーマットを知らない）
 - テスト: **zio-test**
 - 観測性: Cloud Logging / Monitoring 既定（Sentry 等のエラートラッキングは v2）
 - GCS レイアウト: `images/yyyy/mm/<uuid>.webp`、ライフサイクルルールで孤児オブジェクト GC
