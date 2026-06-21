@@ -5,7 +5,7 @@
 ## Project Structure & Module Organization
 モノレポ。コードは `apps/` 配下に集約（リポジトリ直下は `docs/` と meta のみ）。Scala バックエンドは **単一 sbt ビルド**（ビルドルート=`apps/`、`apps/build.sbt` + `apps/project/`）、UI は **pnpm workspace**。dev 環境はルートの `flake.nix`（`nix develop`）。
 
-- `apps/api` — JVM デプロイ単位（Cloud Run）。sbt ビルドルート。tapir HTTP サーバ。サブプロジェクト: `domain`（純粋: Article イベント ADT・値オブジェクト(Iron)・fold。IO や wire フォーマットを持たない）/ `application`（ユースケース）/ `infrastructure`（Firestore JVM SDK・Postgres・GCS・tapir・**JSON codec**）/ `bootstrap`。
+- `apps/api` — JVM デプロイ単位（Cloud Run）。sbt ビルドルート。tapir HTTP サーバ。サブプロジェクト: `domain`（純粋: Article イベント ADT・値オブジェクト(Iron)。IO や wire フォーマットを持たない。投影 fold は RMU、コマンド側集約ロードは今後）/ `application`（ユースケース）/ `infrastructure`（Firestore JVM SDK・Postgres・GCS・tapir・**JSON codec**）/ `bootstrap`。
 - `apps/rmu` — **Rust** デプロイ単位（Cloud Run, Cargo）。Eventarc 起動の Read Model Updater。axum + serde + sqlx + Firestore クレート。ドメインは API と**コード共有せず**、イベント wire スキーマを契約フィクスチャで整合。
 - `apps/ui/web/viewer` — Next.js SSR（Firebase App Hosting）。
 - `apps/ui/web/editor` — Vite + React SPA（Firebase Hosting）。
@@ -31,7 +31,7 @@
 - 環境変数は各 app にスコープし、`.env.local`（git-ignored）。
 
 ## Testing Guidelines
-- Scala: **zio-test**。ドメイン（fold・不変条件）を重点的に。spec は対象モジュール配下。
+- Scala: **zio-test**。ドメイン（値オブジェクト・不変条件、後にコマンド側集約）を重点的に。投影 fold の検証は RMU(Rust) 側。spec は対象モジュール配下。
 - TS: ユニットは `*.spec.ts` を co-locate、`apps/ui/web/<app>/tests/integration` に統合テスト。
 - マージ前に高速なユニットを通す。意図的なギャップは PR に記載。
 

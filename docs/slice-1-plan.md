@@ -35,14 +35,14 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
 ## 2. スコープ（IN / OUT）
 
 ### IN
-- **domain**（純粋）: イベントは `ArticleDrafted` ＋ `ArticlePublished`。`Slug` / `NonEmptyTitle`（Iron + smart constructor）、`fold`（`status` を含む投影）、`schemaVersion`。**JSON codec は持たない**（infrastructure 層へ）
+- **domain**（純粋・書き込み側の語彙）: イベントは `ArticleDrafted` ＋ `ArticlePublished`、`schemaVersion`。`Slug` / `NonEmptyTitle` / `ArticleId`（Iron + smart constructor）。**投影 fold は持たない**（RMU=Rust の責務）。**JSON codec も持たない**（infrastructure 層へ）。コマンド側の集約ロード fold はタスク2
 - **API（コマンド）**:
   - `POST /articles`（draft 作成）— Firestore に seq=1 を **create-only 楽観ロック** で append ＋ `slugs/{slug}` 予約を**同一 Tx**で実施。衝突は **409**
   - publish コマンド `POST /articles/{id}/publish`（`ArticlePublished` を append）。**期待バージョン必須**（楽観ロック）、**未作成 id は 404**、**既公開への再 publish は冪等成功（200/204・新イベント append なし・no-op）**、`publishedAt` は**サーバ時刻で採番**（クライアント値を信頼しない）
   - 認証境界（`Authenticator` port + Bearer middleware）
   - **HTTP 境界の入力検証**: 400/409 の切り分け、body / Markdown サイズ上限、未知 JSON フィールド・`schemaVersion` 不一致の拒否、Firestore doc id として危険な slug 文字の拒否、SQL パラメータ化
 - **API（クエリ）**: `GET /articles/{slug}` — Postgres から。**published のみ返却、draft / 不在は 404**。CORS 方針を明記
-- **RMU**: `articleId` 受領 → 全ストリーム再読込 → fold → Postgres upsert（`lastAppliedSeq` で古い適用を skip）。**Eventarc payload 検証**: `articleId` の形式検証、対象パスが `articles/{id}/events/{seq}` であることの確認、`slugs/*` 等の非対象 doc を拒否（payload を鵜呑みにしない）。**ACK/NACK 方針**（Pub/Sub push は ACK ステータス＝`102/200/201/202/204`、それ以外＝NACK→再送→DLQ。**成功応答は 200 か 204 に固定**する）: **恒久エラー（構造的に無効・非対象 payload）は 200/204 で ACK ＋ 自前 dead-letter（ログ/テーブル）に記録**して再送を止める／**一過性失敗（Firestore 読取・Postgres upsert エラー）は 5xx で NACK → Eventarc リトライ → 上限超過で DLQ**（DLQ は Eventarc/Pub/Sub subscription 側に dead-letter topic を設定）。**dead-letter 記録自体が落ちても観測できるよう、ログと永続テーブルの少なくとも一方は残す**。**手動 replay 導線（Job/CLI の最小版）**
+- **RMU**: `articleId` 受領 → 全ストリーム再読込 → fold → Postgres upsert（`lastAppliedSeq` で古い適用を skip）。**Eventarc payload 検証**: `articleId` の形式検証、対象パスが `articles/{id}/events/{seq}` であることの確認、`slugs/*` 等の非対象 doc を拒否（payload を鵜呑みにしない）。**ACK/NACK 方針**（Pub/Sub push は **2xx＝ACK / それ以外＝NACK→再送→DLQ**。**成功応答は 200 か 204 に固定**する）: **恒久エラー（構造的に無効・非対象 payload）は 200/204 で ACK ＋ 自前 dead-letter（ログ/テーブル）に記録**して再送を止める／**一過性失敗（Firestore 読取・Postgres upsert エラー）は 5xx で NACK → Eventarc リトライ → 上限超過で DLQ**（DLQ は Eventarc/Pub/Sub subscription 側に dead-letter topic を設定）。**dead-letter 記録自体が落ちても観測できるよう、ログと永続テーブルの少なくとも一方は残す**。**手動 replay 導線（Job/CLI の最小版）**
 - **viewer**: `/posts/{slug}` を SSR で API 経由 1 件表示（published のみ）。**本文 Markdown(GFM) → HTML 化時に `rehype-sanitize`（拡張 allowlist）で sanitization**（設計 §5。XSS を後続扱いにしない）。**ISR/revalidate なし**（毎回ライブ読み）
 - **型契約**: 上記 endpoint の最小 OpenAPI 生成 → `packages/api-client`
 - **Postgres**: articles 投影テーブル（`status`・`slug` unique 含む）の Flyway マイグレーション1本
@@ -65,8 +65,8 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
 ### マイルストーン A — ローカル End-to-End 貫通
 
 1. **`apps/api/domain`（JVM 純粋サブプロジェクト）** ✅ 実装済み
-   - `ArticleDrafted` / `ArticlePublished`、`Slug` / `NonEmptyTitle`（Iron + smart constructor）、`fold`（`status` 反映, `Seq` で順序を型に明示）、`schemaVersion`。**純粋（JSON codec は infrastructure へ）**
-   - *DoD*: zio-test で fold と VO 不変条件が緑。**ライブラリ組み合わせ（Scala 3.8.4 / Iron 3.3.1 等）の解決・コンパイル確認** → 達成（7 件緑）。JSON codec / round-trip テストはタスク2（infrastructure）で実装
+   - `ArticleDrafted` / `ArticlePublished`、`schemaVersion`、`Slug` / `NonEmptyTitle` / `ArticleId`（Iron + smart constructor）。**書き込み側の語彙のみ**（投影 fold は RMU=Rust、JSON codec・schemaVersion アップキャストは infrastructure の decode 境界、いずれもタスク2以降）
+   - *DoD*: zio-test で VO 不変条件・`ArticleId.parse` が緑。**ライブラリ組み合わせ（Scala 3.8.4 / Iron 3.3.1 等）の解決・コンパイル確認** → 達成（3 件緑）
 
 2. **`apps/api`（JVM, Cloud Run）**
    - Firestore append（doc id = seq の create-only 楽観ロック）＋ `slugs/{slug}` 予約を**同一 Tx**／publish コマンド／`Authenticator` port + Bearer middleware／`GET /articles/{slug}`（Magnum + magnum-zio、published のみ）／入力検証／tapir + zio-http → OpenAPI

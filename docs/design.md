@@ -192,7 +192,7 @@ flake.lock
 apps/                       コード（言語ごとに独立ビルド）
   api/                      JVM deployable: tapir HTTP サーバ（Cloud Run）。sbt ビルドルート
     build.sbt / project/    単一 sbt ビルド（api のサブプロジェクト群を集約）
-    domain/                 純粋サブプロジェクト: Article イベント ADT・値オブジェクト(Iron)・projection fold。IO や wire フォーマット(JSON 等)を持たない
+    domain/                 純粋サブプロジェクト: Article イベント ADT・値オブジェクト(Iron)。IO や wire フォーマット(JSON 等)を持たない。投影 fold は RMU(Rust)、コマンド側の集約ロード fold は今後追加
     application/            ユースケース（コマンド/クエリ）
     infrastructure/         Firestore(JVM SDK)・Postgres・GCS・tapir
     bootstrap/              ZLayer 配線・エントリポイント
@@ -224,7 +224,7 @@ docs/
 - revalidate webhook / Draft プレビュートークンは共有シークレットで保護
 - 独自ドメイン取得は別途必要
 - API エンドポイント表面は実装時に OpenAPI として確定。Article は**コマンド側**（draft 作成 / revise / publish / unpublish → Firestore へ append）と**クエリ側**（一覧 / slug / tags → Cloud SQL）に分離。Page / media upload / auth / revalidate は別途
-- **イベントスキーマのバージョニング**: イベント payload に `schemaVersion` を持たせ、fold 時にアップキャスト
+- **イベントスキーマのバージョニング**: イベント payload に `schemaVersion` を持たせ、**decode 時（infrastructure の codec 境界）でアップキャスト**して現行ドメインイベントに正規化する（fold は常に現行版のみを扱う純粋関数に保つ）。未知バージョンは黙って同一視せず明示的に失敗させる
 - **Firestore セキュリティ**: イベントストアへの書込は API のサービスアカウントのみ（クライアント直書き禁止）。Eventarc は RMU 失敗時リトライ + DLQ を設定
 - RMU は公開エンドポイントにせず、Eventarc / 当該サービスアカウントからの呼び出しのみ許可（Cloud Run IAM）
 
@@ -242,6 +242,6 @@ docs/
 - **イベントストア = Firestore（EventStoreDB / Kurrent ではなく）**: 当初 ESDB を検討したが、マネージド（Kurrent Cloud）は月 $100〜210 と個人ブログに過剰、セルフホストは月 $16〜30 でも常時起動 VM が Cloud Run 中心の構成からはみ出す。Firestore はサーバレス・低コストで、次項の CDC と一体で機能する。
 - **CDC = Firestore + Eventarc → Cloud Run RMU（outbox なし）**: DynamoDB Streams 型の「書込→自動通知」を GCP ネイティブで実現する最短解。serverless・ゼロスケール。代償は順序保証がないことだが、RMU を「全ストリーム再読込 fold」にして吸収。Spanner change streams は順序保証ありだが高コスト、DynamoDB は GCP 外になるため見送り。
 - **RMU = トリガごとに全ストリーム fold**: Eventarc の at-least-once・順不同に対し、最も単純で堅牢。記事あたりイベント数が少ないため再読込コストは無視できる。`lastAppliedSeq` で古い適用を skip。
-- **RMU = Rust（JVM/Scala.js ではなく）**: ephemeral な購読者として都度起動するため JVM のコールドスタート（数秒）を避けたい。当初は Scala.js→Node を検討（高速起動＋`domain` を cross-compile で API と共有）したが、(1) RMU の責務は小さく、(2) morecat は craft / 多言語実験を主目的とし、(3) コード共有(fold)の単一ソース性は優先度が低い、との判断から **Rust** を採用。ネイティブ単一バイナリで最速級のコールドスタート、薄い consumer なので学習対象として最適。共有が要るのは**イベントの wire スキーマ**のみで、契約フィクスチャ（`events.json`→`expected-projection.json`）を Scala / Rust 双方のテストで検証して drift を防ぐ。`fold` は Rust に再実装（Scala の fold は参照実装）。結果として Scala(api) は単一 sbt ビルド、rmu は独立 Cargo ビルドとなり、言語ごとに独立した deployable になる。
+- **RMU = Rust（JVM/Scala.js ではなく）**: ephemeral な購読者として都度起動するため JVM のコールドスタート（数秒）を避けたい。当初は Scala.js→Node を検討（高速起動＋`domain` を cross-compile で API と共有）したが、(1) RMU の責務は小さく、(2) morecat は craft / 多言語実験を主目的とし、(3) コード共有(fold)の単一ソース性は優先度が低い、との判断から **Rust** を採用。ネイティブ単一バイナリで最速級のコールドスタート、薄い consumer なので学習対象として最適。共有が要るのは**イベントの wire スキーマ**のみで、契約フィクスチャ（`events.json`→`expected-projection.json`）で drift を防ぐ（Scala 側はイベント encode が fixture と一致することを、Rust 側は fold→投影が一致することを検証）。**投影 fold は Rust にのみ実装し、Scala API ドメインには置かない**（API は投影 fold をしない）。結果として Scala(api) は単一 sbt ビルド、rmu は独立 Cargo ビルドとなり、言語ごとに独立した deployable になる。
 - **revalidate を RMU 側に置く（API ではなく）**: 投影更新が非同期（Eventarc→RMU）なので、API が公開時に直接 revalidate すると、投影更新前に viewer が再生成して stale をキャッシュしうる。読取モデルを更新した RMU が upsert 完了後に revalidate を起こせば read-your-write が成立。PR レビュー（emag）指摘への対応。
 - **slug 一意性をコマンド受付時に保証**: slug unique を Cloud SQL 投影だけに頼ると、同一 slug の並行 append が RMU upsert 時にしか衝突を検出できない。Firestore は Tx が強整合なので、`slugs/{slug}` 予約をイベント append と同一 Tx で行い受付時に一意性を担保（単一ストアで二重書き込みも回避）。PR レビュー（emag）指摘への対応。
