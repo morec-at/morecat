@@ -4,7 +4,7 @@ API(JVM) の**純粋ドメイン**サブプロジェクト。IO 依存（Firesto
 
 ## 責務（書き込み側の語彙）
 - Article のドメインイベント ADT（`ArticleDrafted` / `ArticlePublished`、`schemaVersion` 付き）
-- 値オブジェクト（Iron + smart constructor）: `Slug` / `NonEmptyTitle` / `ArticleId`
+- 値オブジェクト: `Slug` / `Title`（Iron + smart constructor）、`ArticleId`（表現非依存の不透明 ID。UUIDv7 の採番・形式検証は infrastructure の責務）
 
 **含めないもの**
 - **読み取りモデル `Article` の projection fold** … RMU(Rust) の責務（イベントを fold して Cloud SQL に投影）。API は投影 fold をしない。
