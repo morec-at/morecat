@@ -15,3 +15,7 @@ project/project/
 # Nix
 result
 result-*
+
+# Env (各 app スコープ。秘匿情報を含むため深さを問わず untracked に)
+.env.local
+.env.*.local
