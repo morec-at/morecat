@@ -3,7 +3,7 @@
 設計の全体像は `docs/design.md`、構成図は `docs/architecture.html` を参照。本ファイルは貢献者 / エージェント向けの作業ガイド。
 
 ## Project Structure & Module Organization
-モノレポ。コードは `apps/` 配下に集約（リポジトリ直下は `docs/` と meta のみ）。Scala バックエンドは **単一 sbt ビルド**（ビルドルート=`apps/`、`apps/build.sbt` + `apps/project/`）、UI は **pnpm workspace**。dev 環境はルートの `flake.nix`（`nix develop`）。
+モノレポ。コードは `apps/` 配下に集約（リポジトリ直下は `docs/` と meta のみ）。Scala バックエンドは **単一 sbt ビルド**（ビルドルート=`apps/api`、`apps/api/build.sbt` + `apps/api/project/`）、UI は **pnpm workspace**。dev 環境はルートの `flake.nix`（`nix develop`）。
 
 - `apps/api` — JVM デプロイ単位（Cloud Run）。sbt ビルドルート。tapir HTTP サーバ。サブプロジェクト: `domain`（純粋: Article イベント ADT・値オブジェクト(Iron)。IO や wire フォーマットを持たない。投影 fold は RMU、コマンド側集約ロードは今後）/ `application`（ユースケース）/ `infrastructure`（Firestore JVM SDK・Postgres・GCS・tapir・**JSON codec**）/ `bootstrap`。
 - `apps/rmu` — **Rust** デプロイ単位（Cloud Run, Cargo）。Eventarc 起動の Read Model Updater。axum + serde + sqlx + Firestore クレート。ドメインは API と**コード共有せず**、イベント wire スキーマを契約フィクスチャで整合。

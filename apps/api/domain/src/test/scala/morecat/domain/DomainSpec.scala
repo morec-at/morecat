@@ -50,4 +50,13 @@ object DomainSpec extends ZIOSpecDefault:
         }
       },
     ),
+    suite("ArticleEvent")(
+      // schemaVersion は wire 契約の核。現行版を lock して不用意な変更を検出する。
+      test("schemaVersion is fixed to the current version (1)") {
+        assertTrue(
+          ArticleDrafted(Slug.applyUnsafe("a"), Title.applyUnsafe("t"), "body").schemaVersion == 1,
+          ArticlePublished(publishedAt = 0L).schemaVersion == 1,
+        )
+      },
+    ),
   )

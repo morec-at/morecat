@@ -6,7 +6,7 @@
 
 ## 0. 方針
 
-ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / editor）と構成要素が多いため、最初に薄い縦切りを End-to-End で一度貫通させ、「イベントが流れて読取モデルが更新される」を実物で確認してから各コンポーネントを肉付けする。ただし**設計の核（slug 一意性の受付時保証・公開/下書き境界・認可境界）は walking skeleton でも省略しない**（codex High 指摘）。
+ES + CQRS + 4 デプロイ単位（api / rmu / viewer / editor。domain は Rust RMU と非共有）と構成要素が多いため、最初に薄い縦切りを End-to-End で一度貫通させ、「イベントが流れて読取モデルが更新される」を実物で確認してから各コンポーネントを肉付けする。ただし**設計の核（slug 一意性の受付時保証・公開/下書き境界・認可境界）は walking skeleton でも省略しない**（codex High 指摘）。
 
 ## 1. 確定した方針
 
