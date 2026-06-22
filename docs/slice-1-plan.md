@@ -28,14 +28,14 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
 - API(Scala): Scala **3.8.x**（実績: 3.8.4）/ sbt **1.12.x** / ZIO **2.1.x** / tapir **1.11.x**（zio-http backend, OpenAPI 生成）/ Iron **3.x**（実績: 3.3.1）+ zio-json **0.9.x**（iron-zio-json 連携）/ Magnum **1.3.x**（`magnum-zio`）
 - RMU(**Rust**): axum + serde + sqlx + Firestore クレート（`firestore`/`gcloud-sdk`）。cross-compile は廃止
 - Flyway **10/11.x**（素 SQL マイグレーション）
-- UUIDv7: 軽量ライブラリ（`java-uuid-generator` 等）かドメインで自前生成
+- UUIDv7: 軽量ライブラリ（`java-uuid-generator` 等）で **infrastructure 層が採番**（時計・乱数を要するため domain では生成しない。domain は表現非依存の不透明 ID として扱う）
 
 > 注: 上記は最新/将来系を含むため、**最初のタスクの DoD に「sbt / tapir / zio / Iron / Magnum の組み合わせが実際に解決・コンパイルできること」の検証を含める**（codex Low 指摘）。タスク1で Scala 3.8.4 / Iron 3.3.1 等の組み合わせは検証済み。
 
 ## 2. スコープ（IN / OUT）
 
 ### IN
-- **domain**（純粋・書き込み側の語彙）: イベントは `ArticleDrafted` ＋ `ArticlePublished`、`schemaVersion`。`Slug` / `NonEmptyTitle` / `ArticleId`（Iron + smart constructor）。**投影 fold は持たない**（RMU=Rust の責務）。**JSON codec も持たない**（infrastructure 層へ）。コマンド側の集約ロード fold はタスク2
+- **domain**（純粋・書き込み側の語彙）: イベントは `ArticleDrafted` ＋ `ArticlePublished`（`schemaVersion` は各イベント型固定の現行版定数）。`Slug` / `Title`（Iron + smart constructor）、`ArticleId`（表現非依存の不透明 ID。UUIDv7 の採番・形式検証は infrastructure の責務）。**投影 fold は持たない**（RMU=Rust の責務）。**JSON codec も持たない**（infrastructure 層へ）。コマンド側の集約ロード fold はタスク2
 - **API（コマンド）**:
   - `POST /articles`（draft 作成）— Firestore に seq=1 を **create-only 楽観ロック** で append ＋ `slugs/{slug}` 予約を**同一 Tx**で実施。衝突は **409**
   - publish コマンド `POST /articles/{id}/publish`（`ArticlePublished` を append）。**期待バージョン必須**（楽観ロック）、**未作成 id は 404**、**既公開への再 publish は冪等成功（200/204・新イベント append なし・no-op）**、`publishedAt` は**サーバ時刻で採番**（クライアント値を信頼しない）
@@ -65,8 +65,8 @@ ES + CQRS + cross-compile domain + 4 デプロイ単位（api / rmu / viewer / e
 ### マイルストーン A — ローカル End-to-End 貫通
 
 1. **`apps/api/domain`（JVM 純粋サブプロジェクト）** ✅ 実装済み
-   - `ArticleDrafted` / `ArticlePublished`、`schemaVersion`、`Slug` / `NonEmptyTitle` / `ArticleId`（Iron + smart constructor）。**書き込み側の語彙のみ**（投影 fold は RMU=Rust、JSON codec・schemaVersion アップキャストは infrastructure の decode 境界、いずれもタスク2以降）
-   - *DoD*: zio-test で VO 不変条件・`ArticleId.parse` が緑。**ライブラリ組み合わせ（Scala 3.8.4 / Iron 3.3.1 等）の解決・コンパイル確認** → 達成（3 件緑）
+   - `ArticleDrafted` / `ArticlePublished`（`schemaVersion` は各イベント型固定の現行版定数）、`Slug` / `Title`（Iron + smart constructor）、`ArticleId`（表現非依存の不透明 ID。UUIDv7 の採番・形式検証は infrastructure の責務）。**書き込み側の語彙のみ**（投影 fold は RMU=Rust、JSON codec・schemaVersion アップキャストは infrastructure の decode 境界、いずれもタスク2以降）
+   - *DoD*: zio-test（プロパティベース）で VO 不変条件・`ArticleId` の round-trip が緑。**ライブラリ組み合わせ（Scala 3.8.4 / Iron 3.3.1 等）の解決・コンパイル確認** → 達成（4 件緑）
 
 2. **`apps/api`（JVM, Cloud Run）**
    - Firestore append（doc id = seq の create-only 楽観ロック）＋ `slugs/{slug}` 予約を**同一 Tx**／publish コマンド／`Authenticator` port + Bearer middleware／`GET /articles/{slug}`（Magnum + magnum-zio、published のみ）／入力検証／tapir + zio-http → OpenAPI
