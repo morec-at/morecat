@@ -1,0 +1,53 @@
+name: ci
+
+# モノレポの path フィルタで変更部分のみビルド。
+# ツールチェーンはローカルと同じ nix dev shell を使う（CI == local の再現性）。
+# Action はサプライチェーン保護のためコミット SHA で固定（末尾コメントはバージョン目安）。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: api (Scala) compile & test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@fd3eb131b9b46cc1dd978a7c0ba3fce79dd7d3eb # v3.9.1
+
+      - name: Cache sbt / coursier
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.sbt
+            ~/.cache/coursier
+          key: ${{ runner.os }}-sbt-${{ hashFiles('apps/api/build.sbt', 'apps/api/project/build.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-sbt-
+
+      - name: Compile & test (apps/api)
+        run: nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors test'
