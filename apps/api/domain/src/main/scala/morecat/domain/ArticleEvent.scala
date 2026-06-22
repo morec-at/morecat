@@ -12,7 +12,7 @@ sealed trait ArticleEvent:
 /** 下書き作成（初期 slug/title/body）。tags は slice2 以降。 */
 final case class ArticleDrafted(
     slug: Slug,
-    title: NonEmptyTitle,
+    title: Title,
     body: String,
     schemaVersion: Int = 1,
 ) extends ArticleEvent

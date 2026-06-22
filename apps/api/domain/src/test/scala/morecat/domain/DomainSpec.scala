@@ -18,11 +18,11 @@ object DomainSpec extends ZIOSpecDefault:
         )
       },
     ),
-    suite("NonEmptyTitle")(
+    suite("Title")(
       test("rejects empty") {
         assertTrue(
-          NonEmptyTitle.either("My Post").isRight,
-          NonEmptyTitle.either("").isLeft,
+          Title.either("My Post").isRight,
+          Title.either("").isLeft,
         )
       },
     ),
