@@ -1,15 +1,12 @@
 package morecat.domain
 
-import java.util.UUID
-
-/** 集約 ID。アプリ採番の UUID（v7 を想定。採番・v7 検証は infrastructure 層の責務）。 */
-opaque type ArticleId = UUID
+/** 集約 ID。ドメインにとっては不透明な識別子。
+  * 実体の採番・表現（UUIDv7 等）と検証は infrastructure の責務。
+  */
+opaque type ArticleId = String
 
 object ArticleId:
-  def apply(uuid: UUID): ArticleId = uuid
+  /** 文字列表現から構築（検証なし＝表現は infra の関心ごと）。 */
+  def fromString(raw: String): ArticleId = raw
 
-  def parse(s: String): Either[String, ArticleId] =
-    try Right(UUID.fromString(s))
-    catch case _: IllegalArgumentException => Left(s"invalid UUID: $s")
-
-  extension (id: ArticleId) def value: UUID = id
+  extension (id: ArticleId) def asString: String = id
