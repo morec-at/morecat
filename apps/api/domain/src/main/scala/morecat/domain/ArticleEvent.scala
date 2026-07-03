@@ -16,10 +16,16 @@ final case class ArticleDrafted(
     title: Title,
     body: String,
 ) extends ArticleEvent:
-  val schemaVersion: Int = 1
+  val schemaVersion: Int = ArticleDrafted.CurrentSchemaVersion
+
+object ArticleDrafted:
+  val CurrentSchemaVersion: Int = 1
 
 /** 公開。publishedAt はサーバ時刻（epoch millis）。 */
 final case class ArticlePublished(
     publishedAt: Long,
 ) extends ArticleEvent:
-  val schemaVersion: Int = 1
+  val schemaVersion: Int = ArticlePublished.CurrentSchemaVersion
+
+object ArticlePublished:
+  val CurrentSchemaVersion: Int = 1
