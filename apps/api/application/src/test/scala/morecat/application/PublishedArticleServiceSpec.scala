@@ -35,6 +35,14 @@ object PublishedArticleServiceSpec extends ZIOSpecDefault:
 
       assertZIO(service.getBySlug("hello-world").exit)(fails(equalTo(PublishedArticleError.NotFound)))
     },
+    test("maps query unavailability to QueryUnavailable") {
+      val query   = StubQuery(ZIO.fail(QueryError.Unavailable("down")))
+      val service = PublishedArticleService(query)
+
+      assertZIO(service.getBySlug("hello-world").exit)(
+        fails(equalTo(PublishedArticleError.QueryUnavailable("down"))),
+      )
+    },
     test("rejects invalid slug before querying") {
       val query   = StubQuery(ZIO.succeed(Some(article)))
       val service = PublishedArticleService(query)

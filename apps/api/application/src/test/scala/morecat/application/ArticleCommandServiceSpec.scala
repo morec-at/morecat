@@ -11,17 +11,24 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
 
   private final class RecordingStore(
       initialEvents: Chunk[SequencedArticleEvent] = Chunk.empty,
+      loadResults: List[IO[EventStoreError, Chunk[SequencedArticleEvent]]] = Nil,
       createDraftResult: IO[EventStoreError, Unit] = ZIO.unit,
       appendResult: IO[EventStoreError, Unit] = ZIO.unit,
   ) extends ArticleEventStore:
     var created: List[(ArticleId, ArticleDrafted)]            = Nil
     var appended: List[(ArticleId, Long, ArticleEvent)]       = Nil
+    private var remainingLoads = loadResults
     def createDraft(articleId: ArticleId, event: ArticleDrafted): IO[EventStoreError, Unit] =
       createDraftResult *> ZIO.succeed {
         created = created :+ (articleId, event)
       }
     def load(articleId: ArticleId): IO[EventStoreError, Chunk[SequencedArticleEvent]] =
-      ZIO.succeed(initialEvents)
+      remainingLoads match
+        case next :: rest =>
+          remainingLoads = rest
+          next
+        case Nil =>
+          ZIO.succeed(initialEvents)
     def append(articleId: ArticleId, expectedVersion: Long, event: ArticleEvent): IO[EventStoreError, Unit] =
       appendResult *> ZIO.succeed {
         appended = appended :+ (articleId, expectedVersion, event)
@@ -52,6 +59,14 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           fails(equalTo(CommandError.SlugConflict)),
         )
       },
+      test("maps store unavailability while loading to StoreUnavailable") {
+        val store = RecordingStore(loadResults = List(ZIO.fail(EventStoreError.Unavailable("down"))))
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        assertZIO(service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body")).exit)(
+          fails(equalTo(CommandError.StoreUnavailable("down"))),
+        )
+      },
       test("rejects invalid slug before touching the store") {
         val store   = RecordingStore()
         val service = ArticleCommandService(store, FixedClock(123L))
@@ -77,6 +92,21 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         assertZIO(service.createDraft(CreateDraftCommand(articleId, "hello-world", "Changed", "body")).exit)(
           fails(equalTo(CommandError.VersionConflict)),
         )
+      },
+      test("treats create conflict as idempotent when reload shows the same draft") {
+        val drafted = ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+        val store = RecordingStore(
+          loadResults = List(
+            ZIO.succeed(Chunk.empty),
+            ZIO.succeed(Chunk(SequencedArticleEvent(seq = 1L, event = drafted))),
+          ),
+          createDraftResult = ZIO.fail(EventStoreError.VersionConflict),
+        )
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        for
+          _ <- service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body"))
+        yield assertTrue(store.created.isEmpty)
       },
     ),
     suite("publish")(
@@ -118,6 +148,14 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           fails(equalTo(CommandError.VersionConflict)),
         )
       },
+      test("maps store unavailability while loading to StoreUnavailable") {
+        val store = RecordingStore(loadResults = List(ZIO.fail(EventStoreError.Unavailable("down"))))
+        val service = ArticleCommandService(store, FixedClock(999L))
+
+        assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)).exit)(
+          fails(equalTo(CommandError.StoreUnavailable("down"))),
+        )
+      },
       test("is idempotent when the article is already published") {
         val events = Chunk(
           SequencedArticleEvent(1L, ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")),
@@ -153,6 +191,25 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         for
           exit <- service.publish(PublishArticleCommand(articleId, expectedVersion = 0L)).exit
         yield assertTrue(exit == Exit.fail(CommandError.VersionConflict), store.appended.isEmpty)
+      },
+      test("treats append conflict as idempotent when reload shows the publish succeeded") {
+        val drafted = SequencedArticleEvent(
+          seq = 1L,
+          event = ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
+        )
+        val published = SequencedArticleEvent(seq = 2L, event = ArticlePublished(publishedAt = 999L))
+        val store = RecordingStore(
+          loadResults = List(
+            ZIO.succeed(Chunk(drafted)),
+            ZIO.succeed(Chunk(drafted, published)),
+          ),
+          appendResult = ZIO.fail(EventStoreError.VersionConflict),
+        )
+        val service = ArticleCommandService(store, FixedClock(999L))
+
+        assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)))(
+          equalTo(PublishResult.Published),
+        )
       },
     ),
   )

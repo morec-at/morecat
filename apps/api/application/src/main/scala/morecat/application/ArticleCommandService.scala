@@ -37,6 +37,7 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
       events <- store.load(command.articleId).mapError(toCommandError)
       _ <-
         if events.isEmpty then store.createDraft(command.articleId, event).mapError(toCommandError)
+          .catchAll(recoverCreateDraftConflict(command.articleId, event))
         else if events.length == 1 && events.headOption.exists(_.event == event) then ZIO.unit
         else ZIO.fail(CommandError.VersionConflict)
     yield ()
@@ -56,8 +57,33 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
             _ <- store
               .append(command.articleId, command.expectedVersion, ArticlePublished(publishedAt))
               .mapError(toCommandError)
+              .catchAll(recoverPublishConflict(command.articleId, command.expectedVersion))
           yield PublishResult.Published
     yield result
+
+  private def recoverCreateDraftConflict(
+      articleId: ArticleId,
+      event: ArticleDrafted,
+  )(error: CommandError): IO[CommandError, Unit] =
+    error match
+      case CommandError.SlugConflict | CommandError.VersionConflict =>
+        store.load(articleId).mapError(toCommandError).flatMap { events =>
+          if events.length == 1 && events.headOption.exists(_.event == event) then ZIO.unit
+          else ZIO.fail(error)
+        }
+      case other => ZIO.fail(other)
+
+  private def recoverPublishConflict(
+      articleId: ArticleId,
+      expectedVersion: Long,
+  )(error: CommandError): IO[CommandError, Unit] =
+    error match
+      case CommandError.VersionConflict =>
+        store.load(articleId).mapError(toCommandError).flatMap { events =>
+          if alreadyPublished(events) && isIdempotentPublishRetry(events, expectedVersion) then ZIO.unit
+          else ZIO.fail(error)
+        }
+      case other => ZIO.fail(other)
 
   private def toCommandError(error: EventStoreError): CommandError =
     error match
