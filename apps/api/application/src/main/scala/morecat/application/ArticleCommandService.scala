@@ -34,7 +34,11 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
       slug  <- ZIO.fromEither(Slug.either(command.slug)).mapError(_ => CommandError.InvalidSlug)
       title <- ZIO.fromEither(Title.either(command.title)).mapError(_ => CommandError.InvalidTitle)
       event = ArticleDrafted(slug, title, command.body)
-      _     <- store.createDraft(command.articleId, event).mapError(toCommandError)
+      events <- store.load(command.articleId).mapError(toCommandError)
+      _ <-
+        if events.isEmpty then store.createDraft(command.articleId, event).mapError(toCommandError)
+        else if events.length == 1 && events.headOption.exists(_.event == event) then ZIO.unit
+        else ZIO.fail(CommandError.VersionConflict)
     yield ()
 
   def publish(command: PublishArticleCommand): IO[CommandError, PublishResult] =
@@ -42,8 +46,10 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
       events <- store.load(command.articleId).mapError(toCommandError)
       result <-
         if events.isEmpty then ZIO.fail(CommandError.ArticleNotFound)
+        else if alreadyPublished(events) && isIdempotentPublishRetry(events, command.expectedVersion) then
+          ZIO.succeed(PublishResult.AlreadyPublished)
         else if currentVersion(events) != command.expectedVersion then ZIO.fail(CommandError.VersionConflict)
-        else if events.exists(_.event.isInstanceOf[ArticlePublished]) then ZIO.succeed(PublishResult.AlreadyPublished)
+        else if alreadyPublished(events) then ZIO.succeed(PublishResult.AlreadyPublished)
         else
           for
             publishedAt <- clock.nowMillis
@@ -61,3 +67,12 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
 
   private def currentVersion(events: Chunk[SequencedArticleEvent]): Long =
     events.map(_.seq).maxOption.getOrElse(0L)
+
+  private def alreadyPublished(events: Chunk[SequencedArticleEvent]): Boolean =
+    events.exists(_.event.isInstanceOf[ArticlePublished])
+
+  private def isIdempotentPublishRetry(events: Chunk[SequencedArticleEvent], expectedVersion: Long): Boolean =
+    publishedSeq(events).exists(seq => expectedVersion == seq - 1L)
+
+  private def publishedSeq(events: Chunk[SequencedArticleEvent]): Option[Long] =
+    events.collectFirst { case SequencedArticleEvent(seq, _: ArticlePublished) => seq }

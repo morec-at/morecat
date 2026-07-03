@@ -60,6 +60,24 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           exit <- service.createDraft(CreateDraftCommand(articleId, "../bad", "Hello", "body")).exit
         yield assertTrue(exit == Exit.fail(CommandError.InvalidSlug), store.created.isEmpty)
       },
+      test("is idempotent for the same articleId and same draft content") {
+        val drafted = ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+        val store   = RecordingStore(initialEvents = Chunk(SequencedArticleEvent(seq = 1L, event = drafted)))
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        for
+          _ <- service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body"))
+        yield assertTrue(store.created.isEmpty)
+      },
+      test("rejects the same articleId with different draft content") {
+        val drafted = ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+        val store   = RecordingStore(initialEvents = Chunk(SequencedArticleEvent(seq = 1L, event = drafted)))
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        assertZIO(service.createDraft(CreateDraftCommand(articleId, "hello-world", "Changed", "body")).exit)(
+          fails(equalTo(CommandError.VersionConflict)),
+        )
+      },
     ),
     suite("publish")(
       test("fails with ArticleNotFound when the stream does not exist") {
@@ -112,7 +130,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           result <- service.publish(PublishArticleCommand(articleId, expectedVersion = 2L))
         yield assertTrue(result == PublishResult.AlreadyPublished, store.appended.isEmpty)
       },
-      test("does not hide expected version conflicts when the article is already published") {
+      test("is idempotent when retrying the original publish command after success") {
         val events = Chunk(
           SequencedArticleEvent(1L, ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")),
           SequencedArticleEvent(2L, ArticlePublished(publishedAt = 999L)),
@@ -121,7 +139,19 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         val service = ArticleCommandService(store, FixedClock(1234L))
 
         for
-          exit <- service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)).exit
+          result <- service.publish(PublishArticleCommand(articleId, expectedVersion = 1L))
+        yield assertTrue(result == PublishResult.AlreadyPublished, store.appended.isEmpty)
+      },
+      test("does not hide unrelated expected version conflicts when the article is already published") {
+        val events = Chunk(
+          SequencedArticleEvent(1L, ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")),
+          SequencedArticleEvent(2L, ArticlePublished(publishedAt = 999L)),
+        )
+        val store   = RecordingStore(initialEvents = events)
+        val service = ArticleCommandService(store, FixedClock(1234L))
+
+        for
+          exit <- service.publish(PublishArticleCommand(articleId, expectedVersion = 0L)).exit
         yield assertTrue(exit == Exit.fail(CommandError.VersionConflict), store.appended.isEmpty)
       },
     ),
