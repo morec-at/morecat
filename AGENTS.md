@@ -61,6 +61,6 @@
 - ジョブは review（`contents:read` で codex 実行）と post（`pull-requests:write` でコメント投稿）に分離し、codex 実行中は PR 書込権限を渡さない。
 
 ### PR 後の bot レビュー triage（エージェント運用ルール）
-- **PR を作成したら、bot の自動レビュー（codex sticky / `chatgpt-codex-connector` 等）が出揃うまで待ち、内容を確認・評価するところまで自動で行う。** 手順は `/triage-pr-reviews`（`.claude/commands/triage-pr-reviews.md`）に集約。
+- **PR を作成したら、bot の自動レビュー（codex sticky / `chatgpt-codex-connector` 等）が出揃うまで待ち、内容を確認・評価するところまで自動で行う。** 手順は `/triage-pr-reviews`（`.codex/commands/triage-pr-reviews.md`）に集約。
 - bot レビューは非同期（CI 数分）。HEAD 向けレビューが出るまでポーリングして待つ。
 - 各指摘は現行 HEAD と突き合わせて「要対応／対応不要（設計意図・陳腐化）／曖昧」に分類。**評価の提示までが自動で、実際のコード修正・push・PR への返信はユーザー承認後**に行う。
