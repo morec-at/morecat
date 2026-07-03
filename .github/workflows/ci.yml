@@ -15,7 +15,7 @@ on:
   pull_request:
     paths:
       - 'AGENTS.md'
-      - '.codex/**'
+      - '.agents/skills/**'
       - 'apps/api/**'
       - 'flake.nix'
       - 'flake.lock'
