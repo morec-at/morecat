@@ -34,4 +34,22 @@ object ArticleEventJsonCodecSpec extends ZIOSpecDefault:
 
       assertTrue(ArticleEventJsonCodec.decode(json).isLeft)
     },
+    test("rejects ArticleDrafted when a required field is missing") {
+      val json =
+        """{"eventType":"ArticleDrafted","schemaVersion":1,"slug":"hello-world","title":"Hello","publishedAt":null}"""
+
+      assertTrue(ArticleEventJsonCodec.decode(json).isLeft)
+    },
+    test("rejects ArticlePublished when publishedAt is missing") {
+      val json =
+        """{"eventType":"ArticlePublished","schemaVersion":1,"slug":null,"title":null,"body":null}"""
+
+      assertTrue(ArticleEventJsonCodec.decode(json).isLeft)
+    },
+    test("rejects ArticlePublished when draft-only fields are present") {
+      val json =
+        """{"eventType":"ArticlePublished","schemaVersion":1,"slug":"hello-world","title":null,"body":null,"publishedAt":999}"""
+
+      assertTrue(ArticleEventJsonCodec.decode(json).isLeft)
+    },
   )

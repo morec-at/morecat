@@ -42,6 +42,7 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
       events <- store.load(command.articleId).mapError(toCommandError)
       result <-
         if events.isEmpty then ZIO.fail(CommandError.ArticleNotFound)
+        else if currentVersion(events) != command.expectedVersion then ZIO.fail(CommandError.VersionConflict)
         else if events.exists(_.event.isInstanceOf[ArticlePublished]) then ZIO.succeed(PublishResult.AlreadyPublished)
         else
           for
@@ -57,3 +58,6 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
       case EventStoreError.SlugAlreadyReserved => CommandError.SlugConflict
       case EventStoreError.VersionConflict    => CommandError.VersionConflict
       case EventStoreError.Unavailable(msg)   => CommandError.StoreUnavailable(msg)
+
+  private def currentVersion(events: Chunk[SequencedArticleEvent]): Long =
+    events.map(_.seq).maxOption.getOrElse(0L)

@@ -112,5 +112,17 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           result <- service.publish(PublishArticleCommand(articleId, expectedVersion = 2L))
         yield assertTrue(result == PublishResult.AlreadyPublished, store.appended.isEmpty)
       },
+      test("does not hide expected version conflicts when the article is already published") {
+        val events = Chunk(
+          SequencedArticleEvent(1L, ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")),
+          SequencedArticleEvent(2L, ArticlePublished(publishedAt = 999L)),
+        )
+        val store   = RecordingStore(initialEvents = events)
+        val service = ArticleCommandService(store, FixedClock(1234L))
+
+        for
+          exit <- service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)).exit
+        yield assertTrue(exit == Exit.fail(CommandError.VersionConflict), store.appended.isEmpty)
+      },
     ),
   )
