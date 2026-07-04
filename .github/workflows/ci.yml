@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   api:
-    name: api (Scala) compile & test
+    name: api (Scala) format, compile & test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -47,9 +47,9 @@ jobs:
           path: |
             ~/.sbt
             ~/.cache/coursier
-          key: ${{ runner.os }}-sbt-${{ hashFiles('apps/api/build.sbt', 'apps/api/project/build.properties') }}
+          key: ${{ runner.os }}-sbt-${{ hashFiles('apps/api/build.sbt', 'apps/api/project/build.properties', 'apps/api/project/plugins.sbt', 'apps/api/.scalafmt.conf') }}
           restore-keys: |
             ${{ runner.os }}-sbt-
 
-      - name: Compile & test (apps/api)
-        run: nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors test'
+      - name: Format check, compile & test (apps/api)
+        run: nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors scalafmtCheckAll test'
