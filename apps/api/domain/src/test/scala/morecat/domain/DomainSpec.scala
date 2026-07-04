@@ -15,12 +15,12 @@ object DomainSpec extends ZIOSpecDefault:
   /** 既知の不正パターン。いずれも正規表現を確実に破る。 */
   private val invalidSlug: Gen[Any, String] =
     Gen.oneOf(
-      Gen.const(""),               // 空
-      validSlug.map("-" + _),      // 先頭ハイフン
-      validSlug.map(_ + "-"),      // 末尾ハイフン
+      Gen.const(""), // 空
+      validSlug.map("-" + _), // 先頭ハイフン
+      validSlug.map(_ + "-"), // 末尾ハイフン
       validSlug.map(s => s"$s--$s"), // 連続ハイフン
-      validSlug.map(_ + "A"),      // 大文字混入
-      validSlug.map(_ + " "),      // 空白混入
+      validSlug.map(_ + "A"), // 大文字混入
+      validSlug.map(_ + " "), // 空白混入
     )
 
   def spec = suite("domain")(
@@ -54,8 +54,11 @@ object DomainSpec extends ZIOSpecDefault:
       // schemaVersion は wire 契約の核。現行版を lock して不用意な変更を検出する。
       test("schemaVersion is fixed to the current version (1)") {
         assertTrue(
-          ArticleDrafted(Slug.applyUnsafe("a"), Title.applyUnsafe("t"), "body").schemaVersion == 1,
-          ArticlePublished(publishedAt = 0L).schemaVersion == 1,
+          ArticleDrafted(Slug.applyUnsafe("a"), Title.applyUnsafe("t"), "body").schemaVersion ==
+            ArticleDrafted.CurrentSchemaVersion,
+          ArticlePublished(publishedAt = 0L).schemaVersion == ArticlePublished.CurrentSchemaVersion,
+          ArticleDrafted.CurrentSchemaVersion == 1,
+          ArticlePublished.CurrentSchemaVersion == 1,
         )
       },
     ),
