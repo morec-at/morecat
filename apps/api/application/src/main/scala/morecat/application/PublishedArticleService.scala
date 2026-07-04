@@ -14,7 +14,7 @@ final class PublishedArticleService(query: PublishedArticleQuery):
     for
       slug <- ZIO.fromEither(Slug.either(rawSlug)).mapError(_ => PublishedArticleError.InvalidSlug)
       article <- query.findBySlug(slug).mapError(toPublishedArticleError)
-      result  <- ZIO.fromOption(article).orElseFail(PublishedArticleError.NotFound)
+      result <- ZIO.fromOption(article).orElseFail(PublishedArticleError.NotFound)
     yield result
 
   private def toPublishedArticleError(error: QueryError): PublishedArticleError =

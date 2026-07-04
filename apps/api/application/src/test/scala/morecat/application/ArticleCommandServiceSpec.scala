@@ -15,9 +15,9 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
     createDraftResult: IO[EventStoreError, Unit] = ZIO.unit,
     appendResult: IO[EventStoreError, Unit] = ZIO.unit,
   ) extends ArticleEventStore:
-    var created: List[(ArticleId, ArticleDrafted)]      = Nil
+    var created: List[(ArticleId, ArticleDrafted)] = Nil
     var appended: List[(ArticleId, Long, ArticleEvent)] = Nil
-    private var remainingLoads                          = loadResults
+    private var remainingLoads = loadResults
     def createDraft(articleId: ArticleId, event: ArticleDrafted): IO[EventStoreError, Unit] =
       createDraftResult *> ZIO.succeed {
         created = created :+ (articleId, event)
@@ -44,7 +44,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
   def spec = suite("ArticleCommandService")(
     suite("createDraft")(
       test("creates an ArticleDrafted event with validated slug and title") {
-        val store   = RecordingStore()
+        val store = RecordingStore()
         val service = ArticleCommandService(store, FixedClock(123L))
 
         for _ <- service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body"))
@@ -80,7 +80,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         )
       },
       test("rejects invalid slug before touching the store") {
-        val store   = RecordingStore()
+        val store = RecordingStore()
         val service = ArticleCommandService(store, FixedClock(123L))
 
         for exit <- service
@@ -143,7 +143,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
     ),
     suite("publish")(
       test("fails with ArticleNotFound when the stream does not exist") {
-        val store   = RecordingStore()
+        val store = RecordingStore()
         val service = ArticleCommandService(store, FixedClock(123L))
 
         assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)).exit)(
@@ -156,7 +156,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           event =
             ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
         )
-        val store   = RecordingStore(initialEvents = Chunk(drafted))
+        val store = RecordingStore(initialEvents = Chunk(drafted))
         val service = ArticleCommandService(store, FixedClock(999L))
 
         for result <- service.publish(PublishArticleCommand(articleId, expectedVersion = 1L))
@@ -198,7 +198,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           ),
           SequencedArticleEvent(2L, ArticlePublished(publishedAt = 999L)),
         )
-        val store   = RecordingStore(initialEvents = events)
+        val store = RecordingStore(initialEvents = events)
         val service = ArticleCommandService(store, FixedClock(1234L))
 
         for result <- service.publish(PublishArticleCommand(articleId, expectedVersion = 2L))
@@ -212,7 +212,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           ),
           SequencedArticleEvent(2L, ArticlePublished(publishedAt = 999L)),
         )
-        val store   = RecordingStore(initialEvents = events)
+        val store = RecordingStore(initialEvents = events)
         val service = ArticleCommandService(store, FixedClock(1234L))
 
         for result <- service.publish(PublishArticleCommand(articleId, expectedVersion = 1L))
@@ -228,7 +228,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           ),
           SequencedArticleEvent(2L, ArticlePublished(publishedAt = 999L)),
         )
-        val store   = RecordingStore(initialEvents = events)
+        val store = RecordingStore(initialEvents = events)
         val service = ArticleCommandService(store, FixedClock(1234L))
 
         for result <- service.publish(PublishArticleCommand(articleId, expectedVersion = 0L))

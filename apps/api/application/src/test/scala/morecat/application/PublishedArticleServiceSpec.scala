@@ -17,7 +17,7 @@ object PublishedArticleServiceSpec extends ZIOSpecDefault:
 
   private final class StubQuery(result: IO[QueryError, Option[PublishedArticle]])
       extends PublishedArticleQuery:
-    var requested: List[Slug]                                            = Nil
+    var requested: List[Slug] = Nil
     def findBySlug(slug: Slug): IO[QueryError, Option[PublishedArticle]] =
       result <* ZIO.succeed {
         requested = requested :+ slug
@@ -25,13 +25,13 @@ object PublishedArticleServiceSpec extends ZIOSpecDefault:
 
   def spec = suite("PublishedArticleService")(
     test("returns the published article for a valid slug") {
-      val query   = StubQuery(ZIO.succeed(Some(article)))
+      val query = StubQuery(ZIO.succeed(Some(article)))
       val service = PublishedArticleService(query)
 
       assertZIO(service.getBySlug("hello-world"))(equalTo(article))
     },
     test("returns NotFound when no published projection exists") {
-      val query   = StubQuery(ZIO.succeed(None))
+      val query = StubQuery(ZIO.succeed(None))
       val service = PublishedArticleService(query)
 
       assertZIO(service.getBySlug("hello-world").exit)(
@@ -39,7 +39,7 @@ object PublishedArticleServiceSpec extends ZIOSpecDefault:
       )
     },
     test("maps query unavailability to QueryUnavailable") {
-      val query   = StubQuery(ZIO.fail(QueryError.Unavailable("down")))
+      val query = StubQuery(ZIO.fail(QueryError.Unavailable("down")))
       val service = PublishedArticleService(query)
 
       assertZIO(service.getBySlug("hello-world").exit)(
@@ -47,7 +47,7 @@ object PublishedArticleServiceSpec extends ZIOSpecDefault:
       )
     },
     test("rejects invalid slug before querying") {
-      val query   = StubQuery(ZIO.succeed(Some(article)))
+      val query = StubQuery(ZIO.succeed(Some(article)))
       val service = PublishedArticleService(query)
 
       for exit <- service.getBySlug("../bad").exit

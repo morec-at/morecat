@@ -36,11 +36,11 @@ object ArticleEventJsonCodec:
     wire.eventType match
       case "ArticleDrafted" =>
         for
-          _     <- requireSchemaVersion(wire.schemaVersion, ArticleDrafted.CurrentSchemaVersion)
-          slug  <- required("slug", wire.slug).flatMap(Slug.either)
+          _ <- requireSchemaVersion(wire.schemaVersion, ArticleDrafted.CurrentSchemaVersion)
+          slug <- required("slug", wire.slug).flatMap(Slug.either)
           title <- required("title", wire.title).flatMap(Title.either)
-          body  <- required("body", wire.body)
-          _     <- absent("publishedAt", wire.publishedAt)
+          body <- required("body", wire.body)
+          _ <- absent("publishedAt", wire.publishedAt)
         yield ArticleDrafted(slug, title, body)
       case "ArticlePublished" =>
         for

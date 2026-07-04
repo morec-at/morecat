@@ -31,11 +31,11 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
 
   def createDraft(command: CreateDraftCommand): IO[CommandError, Unit] =
     for
-      slug  <- ZIO.fromEither(Slug.either(command.slug)).mapError(_ => CommandError.InvalidSlug)
+      slug <- ZIO.fromEither(Slug.either(command.slug)).mapError(_ => CommandError.InvalidSlug)
       title <- ZIO.fromEither(Title.either(command.title)).mapError(_ => CommandError.InvalidTitle)
       event = ArticleDrafted(slug, title, command.body)
       events <- store.load(command.articleId).mapError(toCommandError)
-      _      <-
+      _ <-
         if events.isEmpty then
           store
             .createDraft(command.articleId, event)
@@ -56,7 +56,7 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
         else
           for
             publishedAt <- clock.nowMillis
-            _           <- store
+            _ <- store
               .append(command.articleId, command.expectedVersion, ArticlePublished(publishedAt))
               .mapError(toCommandError)
               .catchAll(recoverPublishConflict(command.articleId))
