@@ -6,68 +6,62 @@ import zio.json.*
 object ArticleEventJsonCodec:
 
   def encode(event: ArticleEvent): String =
-    toWire(event).toJson
-
-  def decode(json: String): Either[String, ArticleEvent] =
-    json.fromJson[WireArticleEvent].flatMap(toDomain)
-
-  private def toWire(event: ArticleEvent): WireArticleEvent =
     event match
       case ArticleDrafted(slug, title, body) =>
-        WireArticleEvent(
+        WireArticleDrafted(
           eventType = "ArticleDrafted",
           schemaVersion = ArticleDrafted.CurrentSchemaVersion,
-          slug = Some(slug),
-          title = Some(title),
-          body = Some(body),
-          publishedAt = None,
-        )
+          slug = slug,
+          title = title,
+          body = body,
+        ).toJson
       case ArticlePublished(publishedAt) =>
-        WireArticleEvent(
+        WireArticlePublished(
           eventType = "ArticlePublished",
           schemaVersion = ArticlePublished.CurrentSchemaVersion,
-          slug = None,
-          title = None,
-          body = None,
-          publishedAt = Some(publishedAt),
-        )
+          publishedAt = publishedAt,
+        ).toJson
 
-  private def toDomain(wire: WireArticleEvent): Either[String, ArticleEvent] =
-    wire.eventType match
-      case "ArticleDrafted" =>
-        for
-          _ <- requireSchemaVersion(wire.schemaVersion, ArticleDrafted.CurrentSchemaVersion)
-          slug <- required("slug", wire.slug).flatMap(Slug.either)
-          title <- required("title", wire.title).flatMap(Title.either)
-          body <- required("body", wire.body)
-          _ <- absent("publishedAt", wire.publishedAt)
-        yield ArticleDrafted(slug, title, body)
-      case "ArticlePublished" =>
-        for
-          _ <- requireSchemaVersion(wire.schemaVersion, ArticlePublished.CurrentSchemaVersion)
-          _ <- absent("slug", wire.slug)
-          _ <- absent("title", wire.title)
-          _ <- absent("body", wire.body)
-          publishedAt <- required("publishedAt", wire.publishedAt)
-        yield ArticlePublished(publishedAt)
-      case other =>
-        Left(s"unsupported eventType: $other")
+  def decode(json: String): Either[String, ArticleEvent] =
+    json
+      .fromJson[WireArticleHeader]
+      .flatMap: header =>
+        header.eventType match
+          case "ArticleDrafted" =>
+            json.fromJson[WireArticleDrafted].flatMap(toDomain)
+          case "ArticlePublished" =>
+            json.fromJson[WireArticlePublished].flatMap(toDomain)
+          case other =>
+            Left(s"unsupported eventType: $other")
+
+  private def toDomain(wire: WireArticleDrafted): Either[String, ArticleEvent] =
+    for
+      _ <- requireSchemaVersion(wire.schemaVersion, ArticleDrafted.CurrentSchemaVersion)
+      slug <- Slug.either(wire.slug)
+      title <- Title.either(wire.title)
+    yield ArticleDrafted(slug, title, wire.body)
+
+  private def toDomain(wire: WireArticlePublished): Either[String, ArticleEvent] =
+    for _ <- requireSchemaVersion(wire.schemaVersion, ArticlePublished.CurrentSchemaVersion)
+    yield ArticlePublished(wire.publishedAt)
 
   private def requireSchemaVersion(actual: Int, expected: Int): Either[String, Unit] =
     Either.cond(actual == expected, (), s"unsupported schemaVersion: $actual")
 
-  private def required[A](field: String, value: Option[A]): Either[String, A] =
-    value.toRight(s"missing required field: $field")
-
-  private def absent[A](field: String, value: Option[A]): Either[String, Unit] =
-    Either.cond(value.isEmpty, (), s"unexpected field for event type: $field")
+private final case class WireArticleHeader(eventType: String) derives JsonDecoder
 
 @jsonNoExtraFields
-private final case class WireArticleEvent(
+private final case class WireArticleDrafted(
   eventType: String,
   schemaVersion: Int,
-  slug: Option[String],
-  title: Option[String],
-  body: Option[String],
-  publishedAt: Option[Long],
+  slug: String,
+  title: String,
+  body: String,
+) derives JsonCodec
+
+@jsonNoExtraFields
+private final case class WireArticlePublished(
+  eventType: String,
+  schemaVersion: Int,
+  publishedAt: Long,
 ) derives JsonCodec
