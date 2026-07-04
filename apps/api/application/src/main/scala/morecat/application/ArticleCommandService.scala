@@ -21,7 +21,7 @@ enum CommandError:
   case SlugConflict
   case VersionConflict
   case ArticleNotFound
-  case StoreUnavailable(message: String)
+  case StoreUnavailable
 
 enum PublishResult:
   case Published
@@ -91,7 +91,7 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
     error match
       case EventStoreError.SlugAlreadyReserved => CommandError.SlugConflict
       case EventStoreError.VersionConflict     => CommandError.VersionConflict
-      case EventStoreError.Unavailable(msg)    => CommandError.StoreUnavailable(msg)
+      case EventStoreError.Unavailable(_)      => CommandError.StoreUnavailable
 
   private def currentVersion(events: Chunk[SequencedArticleEvent]): Long =
     events.map(_.seq).maxOption.getOrElse(0L)

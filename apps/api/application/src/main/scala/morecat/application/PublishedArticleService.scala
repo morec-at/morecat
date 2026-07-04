@@ -6,7 +6,7 @@ import zio.*
 enum PublishedArticleError:
   case InvalidSlug
   case NotFound
-  case QueryUnavailable(message: String)
+  case QueryUnavailable
 
 final class PublishedArticleService(query: PublishedArticleQuery):
 
@@ -19,4 +19,4 @@ final class PublishedArticleService(query: PublishedArticleQuery):
 
   private def toPublishedArticleError(error: QueryError): PublishedArticleError =
     error match
-      case QueryError.Unavailable(message) => PublishedArticleError.QueryUnavailable(message)
+      case QueryError.Unavailable(_) => PublishedArticleError.QueryUnavailable

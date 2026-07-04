@@ -43,7 +43,7 @@ object PublishedArticleServiceSpec extends ZIOSpecDefault:
       val service = PublishedArticleService(query)
 
       assertZIO(service.getBySlug("hello-world").exit)(
-        fails(equalTo(PublishedArticleError.QueryUnavailable("down"))),
+        fails(equalTo(PublishedArticleError.QueryUnavailable)),
       )
     },
     test("rejects invalid slug before querying") {

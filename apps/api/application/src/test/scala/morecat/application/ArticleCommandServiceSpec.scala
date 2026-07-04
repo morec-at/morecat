@@ -76,7 +76,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         assertZIO(
           service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body")).exit
         )(
-          fails(equalTo(CommandError.StoreUnavailable("down"))),
+          fails(equalTo(CommandError.StoreUnavailable)),
         )
       },
       test("rejects invalid slug before touching the store") {
@@ -187,7 +187,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         val service = ArticleCommandService(store, FixedClock(999L))
 
         assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)).exit)(
-          fails(equalTo(CommandError.StoreUnavailable("down"))),
+          fails(equalTo(CommandError.StoreUnavailable)),
         )
       },
       test("is idempotent when the article is already published") {
