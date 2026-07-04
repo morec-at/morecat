@@ -52,4 +52,4 @@ jobs:
             ${{ runner.os }}-sbt-
 
       - name: Format check, compile & test (apps/api)
-        run: nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors scalafmtCheckAll test'
+        run: nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors domain/scalafmtCheckAll application/scalafmtCheckAll infrastructure/scalafmtCheckAll test'

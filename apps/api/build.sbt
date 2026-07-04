@@ -59,10 +59,3 @@ lazy val infrastructure = project
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
   )
-
-lazy val root = (project in file("."))
-  .aggregate(domain, application, infrastructure)
-  .settings(
-    name := "morecat-api",
-    publish / skip := true,
-  )
