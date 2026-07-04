@@ -17,6 +17,19 @@ ThisBuild / scalacOptions ++= Seq(
   "-Wunused:all",
 )
 
+ThisBuild / coverageEnabled := false
+ThisBuild / coverageMinimumStmtTotal := 100
+ThisBuild / coverageMinimumBranchTotal := 100
+ThisBuild / coverageFailOnMinimum := true
+
+lazy val root = project
+  .in(file("."))
+  .aggregate(domain, application, infrastructure)
+  .settings(
+    name := "morecat-api",
+    publish / skip := true,
+  )
+
 // 純粋ドメイン: Article イベント ADT・値オブジェクト(Iron)・projection fold。
 // IO や wire フォーマット(JSON 等)への依存を載せないことをビルドで強制する。
 // JSON codec は infrastructure 層の関心事。RMU(Rust) とはコードを共有せず、

@@ -51,5 +51,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-sbt-
 
-      - name: Format check, compile & test (apps/api)
-        run: nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors scalafmtCheckAll test'
+      - name: Format check, compile, test & coverage (apps/api)
+        run: |
+          nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors scalafmtCheckAll clean'
+          nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors coverage domain/test application/test infrastructure/test coverageAggregate'
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: api-scoverage-report
+          path: apps/api/target/scala-*/scoverage-report/**
+          if-no-files-found: error
+          retention-days: 14
