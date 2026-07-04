@@ -15,12 +15,12 @@ object DomainSpec extends ZIOSpecDefault:
   /** 既知の不正パターン。いずれも正規表現を確実に破る。 */
   private val invalidSlug: Gen[Any, String] =
     Gen.oneOf(
-      Gen.const(""),               // 空
-      validSlug.map("-" + _),      // 先頭ハイフン
-      validSlug.map(_ + "-"),      // 末尾ハイフン
+      Gen.const(""),                 // 空
+      validSlug.map("-" + _),        // 先頭ハイフン
+      validSlug.map(_ + "-"),        // 末尾ハイフン
       validSlug.map(s => s"$s--$s"), // 連続ハイフン
-      validSlug.map(_ + "A"),      // 大文字混入
-      validSlug.map(_ + " "),      // 空白混入
+      validSlug.map(_ + "A"),        // 大文字混入
+      validSlug.map(_ + " "),        // 空白混入
     )
 
   def spec = suite("domain")(

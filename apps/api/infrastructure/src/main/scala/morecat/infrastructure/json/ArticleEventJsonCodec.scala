@@ -44,10 +44,10 @@ object ArticleEventJsonCodec:
         yield ArticleDrafted(slug, title, body)
       case "ArticlePublished" =>
         for
-          _           <- requireSchemaVersion(wire.schemaVersion, ArticlePublished.CurrentSchemaVersion)
-          _           <- absent("slug", wire.slug)
-          _           <- absent("title", wire.title)
-          _           <- absent("body", wire.body)
+          _ <- requireSchemaVersion(wire.schemaVersion, ArticlePublished.CurrentSchemaVersion)
+          _ <- absent("slug", wire.slug)
+          _ <- absent("title", wire.title)
+          _ <- absent("body", wire.body)
           publishedAt <- required("publishedAt", wire.publishedAt)
         yield ArticlePublished(publishedAt)
       case other =>
@@ -64,10 +64,10 @@ object ArticleEventJsonCodec:
 
 @jsonNoExtraFields
 private final case class WireArticleEvent(
-    eventType: String,
-    schemaVersion: Int,
-    slug: Option[String],
-    title: Option[String],
-    body: Option[String],
-    publishedAt: Option[Long],
+  eventType: String,
+  schemaVersion: Int,
+  slug: Option[String],
+  title: Option[String],
+  body: Option[String],
+  publishedAt: Option[Long],
 ) derives JsonCodec

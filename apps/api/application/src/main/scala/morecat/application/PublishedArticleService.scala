@@ -12,7 +12,7 @@ final class PublishedArticleService(query: PublishedArticleQuery):
 
   def getBySlug(rawSlug: String): IO[PublishedArticleError, PublishedArticle] =
     for
-      slug    <- ZIO.fromEither(Slug.either(rawSlug)).mapError(_ => PublishedArticleError.InvalidSlug)
+      slug <- ZIO.fromEither(Slug.either(rawSlug)).mapError(_ => PublishedArticleError.InvalidSlug)
       article <- query.findBySlug(slug).mapError(toPublishedArticleError)
       result  <- ZIO.fromOption(article).orElseFail(PublishedArticleError.NotFound)
     yield result

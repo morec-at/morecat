@@ -7,7 +7,8 @@ object ArticleEventJsonCodecSpec extends ZIOSpecDefault:
 
   def spec = suite("ArticleEventJsonCodec")(
     test("round-trips ArticleDrafted without leaking JSON concerns into domain") {
-      val event = ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+      val event =
+        ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
 
       assertTrue(ArticleEventJsonCodec.decode(ArticleEventJsonCodec.encode(event)) == Right(event))
     },

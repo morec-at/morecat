@@ -13,17 +13,21 @@ enum EventStoreError:
 trait ArticleEventStore:
   def createDraft(articleId: ArticleId, event: ArticleDrafted): IO[EventStoreError, Unit]
   def load(articleId: ArticleId): IO[EventStoreError, Chunk[SequencedArticleEvent]]
-  def append(articleId: ArticleId, expectedVersion: Long, event: ArticleEvent): IO[EventStoreError, Unit]
+  def append(
+    articleId: ArticleId,
+    expectedVersion: Long,
+    event: ArticleEvent
+  ): IO[EventStoreError, Unit]
 
 trait ServerClock:
   def nowMillis: UIO[Long]
 
 final case class PublishedArticle(
-    id: ArticleId,
-    slug: Slug,
-    title: Title,
-    body: String,
-    publishedAt: Long,
+  id: ArticleId,
+  slug: Slug,
+  title: Title,
+  body: String,
+  publishedAt: Long,
 )
 
 trait PublishedArticleQuery:
