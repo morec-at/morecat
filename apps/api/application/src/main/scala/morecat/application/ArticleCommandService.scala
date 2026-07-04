@@ -56,11 +56,12 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
         else
           for
             publishedAt <- clock.nowMillis
-            _ <- store
+            result <- store
               .append(command.articleId, command.expectedVersion, ArticlePublished(publishedAt))
+              .as(PublishResult.Published)
               .mapError(toCommandError)
               .catchAll(recoverPublishConflict(command.articleId))
-          yield PublishResult.Published
+          yield result
     yield result
 
   private def recoverCreateDraftConflict(
@@ -77,11 +78,11 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
 
   private def recoverPublishConflict(
     articleId: ArticleId,
-  )(error: CommandError): IO[CommandError, Unit] =
+  )(error: CommandError): IO[CommandError, PublishResult] =
     error match
       case CommandError.VersionConflict =>
         store.load(articleId).mapError(toCommandError).flatMap { events =>
-          if alreadyPublished(events) then ZIO.unit
+          if alreadyPublished(events) then ZIO.succeed(PublishResult.AlreadyPublished)
           else ZIO.fail(error)
         }
       case other => ZIO.fail(other)

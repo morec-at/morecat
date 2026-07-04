@@ -234,7 +234,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         for result <- service.publish(PublishArticleCommand(articleId, expectedVersion = 0L))
         yield assertTrue(result == PublishResult.AlreadyPublished, store.appended.isEmpty)
       },
-      test("treats append conflict as idempotent when reload shows the publish succeeded") {
+      test("returns AlreadyPublished when append conflict reload shows the publish succeeded") {
         val drafted = SequencedArticleEvent(
           seq = 1L,
           event =
@@ -252,7 +252,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         val service = ArticleCommandService(store, FixedClock(999L))
 
         assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)))(
-          equalTo(PublishResult.Published),
+          equalTo(PublishResult.AlreadyPublished),
         )
       },
     ),
