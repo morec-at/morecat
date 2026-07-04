@@ -79,6 +79,17 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           fails(equalTo(CommandError.StoreUnavailable)),
         )
       },
+      test("maps store unavailability while creating to StoreUnavailable") {
+        val store =
+          RecordingStore(createDraftResult = ZIO.fail(EventStoreError.Unavailable("down")))
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        assertZIO(
+          service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body")).exit
+        )(
+          fails(equalTo(CommandError.StoreUnavailable)),
+        )
+      },
       test("rejects invalid slug before touching the store") {
         val store = RecordingStore()
         val service = ArticleCommandService(store, FixedClock(123L))
@@ -87,6 +98,15 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
             .createDraft(CreateDraftCommand(articleId, "../bad", "Hello", "body"))
             .exit
         yield assertTrue(exit == Exit.fail(CommandError.InvalidSlug), store.created.isEmpty)
+      },
+      test("rejects invalid title before touching the store") {
+        val store = RecordingStore()
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        for exit <- service
+            .createDraft(CreateDraftCommand(articleId, "hello-world", "", "body"))
+            .exit
+        yield assertTrue(exit == Exit.fail(CommandError.InvalidTitle), store.created.isEmpty)
       },
       test("is idempotent for the same articleId and same draft content") {
         val drafted =
@@ -123,6 +143,40 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           service.createDraft(CreateDraftCommand(articleId, "hello-world", "Changed", "body")).exit
         )(
           fails(equalTo(CommandError.VersionConflict)),
+        )
+      },
+      test("keeps slug conflicts when reload does not show the requested draft") {
+        val otherDraft =
+          ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Other"), "body")
+        val store = RecordingStore(
+          loadResults = List(
+            ZIO.succeed(Chunk.empty),
+            ZIO.succeed(Chunk(SequencedArticleEvent(seq = 1L, event = otherDraft))),
+          ),
+          createDraftResult = ZIO.fail(EventStoreError.SlugAlreadyReserved),
+        )
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        assertZIO(
+          service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body")).exit
+        )(
+          fails(equalTo(CommandError.SlugConflict)),
+        )
+      },
+      test("maps reload unavailability after create conflict to StoreUnavailable") {
+        val store = RecordingStore(
+          loadResults = List(
+            ZIO.succeed(Chunk.empty),
+            ZIO.fail(EventStoreError.Unavailable("down")),
+          ),
+          createDraftResult = ZIO.fail(EventStoreError.VersionConflict),
+        )
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        assertZIO(
+          service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body")).exit
+        )(
+          fails(equalTo(CommandError.StoreUnavailable)),
         )
       },
       test("treats create conflict as idempotent when reload shows the same draft") {
@@ -179,6 +233,22 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
 
         assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 0L)).exit)(
           fails(equalTo(CommandError.VersionConflict)),
+        )
+      },
+      test("maps append unavailability to StoreUnavailable") {
+        val drafted = SequencedArticleEvent(
+          seq = 1L,
+          event =
+            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
+        )
+        val store = RecordingStore(
+          initialEvents = Chunk(drafted),
+          appendResult = ZIO.fail(EventStoreError.Unavailable("down")),
+        )
+        val service = ArticleCommandService(store, FixedClock(999L))
+
+        assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)).exit)(
+          fails(equalTo(CommandError.StoreUnavailable)),
         )
       },
       test("maps store unavailability while loading to StoreUnavailable") {
@@ -253,6 +323,44 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
 
         assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)))(
           equalTo(PublishResult.AlreadyPublished),
+        )
+      },
+      test("keeps append conflicts when reload does not show a published article") {
+        val drafted = SequencedArticleEvent(
+          seq = 1L,
+          event =
+            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
+        )
+        val store = RecordingStore(
+          loadResults = List(
+            ZIO.succeed(Chunk(drafted)),
+            ZIO.succeed(Chunk(drafted)),
+          ),
+          appendResult = ZIO.fail(EventStoreError.VersionConflict),
+        )
+        val service = ArticleCommandService(store, FixedClock(999L))
+
+        assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)).exit)(
+          fails(equalTo(CommandError.VersionConflict)),
+        )
+      },
+      test("maps reload unavailability after append conflict to StoreUnavailable") {
+        val drafted = SequencedArticleEvent(
+          seq = 1L,
+          event =
+            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
+        )
+        val store = RecordingStore(
+          loadResults = List(
+            ZIO.succeed(Chunk(drafted)),
+            ZIO.fail(EventStoreError.Unavailable("down")),
+          ),
+          appendResult = ZIO.fail(EventStoreError.VersionConflict),
+        )
+        val service = ArticleCommandService(store, FixedClock(999L))
+
+        assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 1L)).exit)(
+          fails(equalTo(CommandError.StoreUnavailable)),
         )
       },
     ),
