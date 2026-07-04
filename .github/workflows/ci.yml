@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   api:
-    name: api (Scala) format, compile, test & coverage
+    name: api (Scala) format, compile & test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
