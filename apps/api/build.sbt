@@ -18,6 +18,9 @@ ThisBuild / scalacOptions ++= Seq(
 )
 
 ThisBuild / coverageEnabled := false
+ThisBuild / coverageMinimumStmtTotal := 100
+ThisBuild / coverageMinimumBranchTotal := 100
+ThisBuild / coverageFailOnMinimum := true
 
 lazy val root = project
   .in(file("."))

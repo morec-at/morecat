@@ -52,7 +52,9 @@ jobs:
             ${{ runner.os }}-sbt-
 
       - name: Format check, compile, test & coverage (apps/api)
-        run: nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors scalafmtCheckAll coverage test coverageAggregate'
+        run: |
+          nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors scalafmtCheckAll clean'
+          nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors coverage test coverageAggregate'
 
       - name: Upload coverage report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

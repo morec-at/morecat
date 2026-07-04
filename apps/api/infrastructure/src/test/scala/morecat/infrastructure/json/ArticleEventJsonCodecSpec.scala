@@ -44,6 +44,14 @@ object ArticleEventJsonCodecSpec extends ZIOSpecDefault:
 
       assertTrue(ArticleEventJsonCodec.decode(json).isLeft)
     },
+    test("rejects unsupported eventType") {
+      val json =
+        """{"eventType":"ArticleArchived","schemaVersion":1}"""
+
+      assertTrue(
+        ArticleEventJsonCodec.decode(json) == Left("unsupported eventType: ArticleArchived")
+      )
+    },
     test("rejects invalid slug at the decode boundary") {
       val json =
         """{"eventType":"ArticleDrafted","schemaVersion":1,"slug":"../bad","title":"Hello","body":"body"}"""
