@@ -17,18 +17,22 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
   ) extends ArticleEventStore:
     var created: List[(ArticleId, ArticleDrafted)] = Nil
     var appended: List[(ArticleId, Long, ArticleEvent)] = Nil
+    var loaded: List[ArticleId] = Nil
     private var remainingLoads = loadResults
     def createDraft(articleId: ArticleId, event: ArticleDrafted): IO[EventStoreError, Unit] =
       createDraftResult *> ZIO.succeed {
         created = created :+ (articleId, event)
       }
     def load(articleId: ArticleId): IO[EventStoreError, Chunk[SequencedArticleEvent]] =
-      remainingLoads match
-        case next :: rest =>
-          remainingLoads = rest
-          next
-        case Nil =>
-          ZIO.succeed(initialEvents)
+      ZIO.succeed {
+        loaded = loaded :+ articleId
+      } *>
+        (remainingLoads match
+          case next :: rest =>
+            remainingLoads = rest
+            next
+          case Nil =>
+            ZIO.succeed(initialEvents))
     def append(
       articleId: ArticleId,
       expectedVersion: Long,
@@ -97,7 +101,11 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         for exit <- service
             .createDraft(CreateDraftCommand(articleId, "../bad", "Hello", "body"))
             .exit
-        yield assertTrue(exit == Exit.fail(CommandError.InvalidSlug), store.created.isEmpty)
+        yield assertTrue(
+          exit == Exit.fail(CommandError.InvalidSlug),
+          store.loaded.isEmpty,
+          store.created.isEmpty,
+        )
       },
       test("rejects invalid title before touching the store") {
         val store = RecordingStore()
@@ -106,7 +114,11 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         for exit <- service
             .createDraft(CreateDraftCommand(articleId, "hello-world", "", "body"))
             .exit
-        yield assertTrue(exit == Exit.fail(CommandError.InvalidTitle), store.created.isEmpty)
+        yield assertTrue(
+          exit == Exit.fail(CommandError.InvalidTitle),
+          store.loaded.isEmpty,
+          store.created.isEmpty,
+        )
       },
       test("is idempotent for the same articleId and same draft content") {
         val drafted =
@@ -219,7 +231,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           store.appended == List((articleId, 1L, ArticlePublished(publishedAt = 999L))),
         )
       },
-      test("maps expected version conflicts without hiding them") {
+      test("rejects stale expected versions before appending") {
         val drafted = SequencedArticleEvent(
           seq = 1L,
           event =
@@ -231,8 +243,10 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         )
         val service = ArticleCommandService(store, FixedClock(999L))
 
-        assertZIO(service.publish(PublishArticleCommand(articleId, expectedVersion = 0L)).exit)(
-          fails(equalTo(CommandError.VersionConflict)),
+        for exit <- service.publish(PublishArticleCommand(articleId, expectedVersion = 0L)).exit
+        yield assertTrue(
+          exit == Exit.fail(CommandError.VersionConflict),
+          store.appended.isEmpty,
         )
       },
       test("maps append unavailability to StoreUnavailable") {
