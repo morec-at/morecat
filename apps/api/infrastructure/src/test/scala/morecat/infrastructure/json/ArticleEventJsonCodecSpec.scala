@@ -8,13 +8,13 @@ object ArticleEventJsonCodecSpec extends ZIOSpecDefault:
   def spec = suite("ArticleEventJsonCodec")(
     test("round-trips ArticleDrafted without leaking JSON concerns into domain") {
       val event =
-        ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+        ArticleDrafted.applyUnsafe("hello-world", "Hello", "body")
 
       assertTrue(ArticleEventJsonCodec.decode(ArticleEventJsonCodec.encode(event)) == Right(event))
     },
     test("omits non-applicable fields when encoding ArticleDrafted") {
       val event =
-        ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+        ArticleDrafted.applyUnsafe("hello-world", "Hello", "body")
 
       assertTrue(!ArticleEventJsonCodec.encode(event).contains("publishedAt"))
     },
@@ -57,6 +57,20 @@ object ArticleEventJsonCodecSpec extends ZIOSpecDefault:
         """{"eventType":"ArticleDrafted","schemaVersion":1,"slug":"../bad","title":"Hello","body":"body"}"""
 
       assertTrue(ArticleEventJsonCodec.decode(json).isLeft)
+    },
+    test("preserves oversized historical ArticleDrafted bodies at the decode boundary") {
+      val oversizedBody = "x" * (ArticleBody.MaxBytes + 1)
+      val json =
+        s"""{"eventType":"ArticleDrafted","schemaVersion":1,"slug":"hello-world","title":"Hello","body":"$oversizedBody"}"""
+
+      assertTrue(
+        ArticleEventJsonCodec.decode(json) ==
+          ArticleDrafted
+            .fromStoredEvent("hello-world", "Hello", oversizedBody)
+            .map(identity)
+            .left
+            .map(_.mkString(","))
+      )
     },
     test("rejects ArticleDrafted when a required field is missing") {
       val json =

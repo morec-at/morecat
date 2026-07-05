@@ -1,6 +1,6 @@
 package morecat.application
 
-import morecat.domain.*
+import _root_.morecat.domain.*
 import zio.*
 import zio.test.Assertion.*
 import zio.test.*
@@ -8,6 +8,13 @@ import zio.test.*
 object ArticleCommandServiceSpec extends ZIOSpecDefault:
 
   private val articleId = ArticleId.fromString("018f4edc-1f5a-7c4b-aef9-000000000001")
+
+  private def articleDrafted(
+    slug: String = "hello-world",
+    title: String = "Hello",
+    body: String = "body",
+  ): ArticleDrafted =
+    ArticleDrafted.applyUnsafe(slug, title, body)
 
   private final class RecordingStore(
     initialEvents: Chunk[SequencedArticleEvent] = Chunk.empty,
@@ -46,6 +53,24 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
     def nowMillis: UIO[Long] = ZIO.succeed(value)
 
   def spec = suite("ArticleCommandService")(
+    suite("domain constructors used by commands")(
+      test("ArticleBody applyUnsafe returns valid content") {
+        assertTrue(ArticleBody.applyUnsafe("body").value == "body")
+      },
+      test("ArticleBody applyUnsafe throws for oversized content") {
+        val body = "x" * (ArticleBody.MaxBytes + 1)
+
+        assertZIO(ZIO.attempt(ArticleBody.applyUnsafe(body)).exit)(fails(anything))
+      },
+      test("ArticleDrafted applyUnsafe throws for invalid content") {
+        assertZIO(ZIO.attempt(ArticleDrafted.applyUnsafe("../bad", "", "body")).exit)(
+          fails(anything)
+        )
+      },
+      test("ArticleId exposes its opaque string value") {
+        assertTrue(articleId.asString == "018f4edc-1f5a-7c4b-aef9-000000000001")
+      },
+    ),
     suite("createDraft")(
       test("creates an ArticleDrafted event with validated slug and title") {
         val store = RecordingStore()
@@ -56,7 +81,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           store.created == List(
             (
               articleId,
-              ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+              articleDrafted()
             ),
           ),
         )
@@ -102,7 +127,9 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
             .createDraft(CreateDraftCommand(articleId, "../bad", "Hello", "body"))
             .exit
         yield assertTrue(
-          exit == Exit.fail(CommandError.InvalidSlug),
+          exit == Exit.fail(
+            CommandError.InvalidDraft(Chunk(ArticleDrafted.ValidationError.InvalidSlug))
+          ),
           store.loaded.isEmpty,
           store.created.isEmpty,
         )
@@ -115,14 +142,68 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
             .createDraft(CreateDraftCommand(articleId, "hello-world", "", "body"))
             .exit
         yield assertTrue(
-          exit == Exit.fail(CommandError.InvalidTitle),
+          exit == Exit.fail(
+            CommandError.InvalidDraft(Chunk(ArticleDrafted.ValidationError.InvalidTitle))
+          ),
           store.loaded.isEmpty,
           store.created.isEmpty,
         )
       },
+      test("rejects body content larger than the domain limit before touching the store") {
+        val store = RecordingStore()
+        val service = ArticleCommandService(store, FixedClock(123L))
+        val oversizedBody = "x" * (ArticleBody.MaxBytes + 1)
+
+        for exit <- service
+            .createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", oversizedBody))
+            .exit
+        yield assertTrue(
+          exit == Exit.fail(
+            CommandError.InvalidDraft(Chunk(ArticleDrafted.ValidationError.BodyTooLarge))
+          ),
+          store.loaded.isEmpty,
+          store.created.isEmpty,
+        )
+      },
+      test("collects every draft validation error before touching the store") {
+        val store = RecordingStore()
+        val service = ArticleCommandService(store, FixedClock(123L))
+        val oversizedBody = "x" * (ArticleBody.MaxBytes + 1)
+
+        for exit <- service
+            .createDraft(CreateDraftCommand(articleId, "../bad", "", oversizedBody))
+            .exit
+        yield assertTrue(
+          exit == Exit.fail(
+            CommandError.InvalidDraft(
+              Chunk(
+                ArticleDrafted.ValidationError.InvalidSlug,
+                ArticleDrafted.ValidationError.InvalidTitle,
+                ArticleDrafted.ValidationError.BodyTooLarge,
+              ),
+            )
+          ),
+          store.loaded.isEmpty,
+          store.created.isEmpty,
+        )
+      },
+      test("accepts body content exactly at the domain limit") {
+        val store = RecordingStore()
+        val service = ArticleCommandService(store, FixedClock(123L))
+        val body = "x" * ArticleBody.MaxBytes
+
+        for _ <- service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", body))
+        yield assertTrue(
+          store.created == List(
+            (
+              articleId,
+              articleDrafted(body = body),
+            ),
+          ),
+        )
+      },
       test("is idempotent for the same articleId and same draft content") {
-        val drafted =
-          ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+        val drafted = articleDrafted()
         val store =
           RecordingStore(initialEvents = Chunk(SequencedArticleEvent(seq = 1L, event = drafted)))
         val service = ArticleCommandService(store, FixedClock(123L))
@@ -131,8 +212,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         yield assertTrue(store.created.isEmpty)
       },
       test("is idempotent for the same initial draft even after later events") {
-        val drafted =
-          ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+        val drafted = articleDrafted()
         val store = RecordingStore(
           initialEvents = Chunk(
             SequencedArticleEvent(seq = 1L, event = drafted),
@@ -145,8 +225,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         yield assertTrue(store.created.isEmpty)
       },
       test("rejects the same articleId with different draft content") {
-        val drafted =
-          ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+        val drafted = articleDrafted()
         val store =
           RecordingStore(initialEvents = Chunk(SequencedArticleEvent(seq = 1L, event = drafted)))
         val service = ArticleCommandService(store, FixedClock(123L))
@@ -158,8 +237,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         )
       },
       test("keeps slug conflicts when reload does not show the requested draft") {
-        val otherDraft =
-          ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Other"), "body")
+        val otherDraft = articleDrafted(title = "Other")
         val store = RecordingStore(
           loadResults = List(
             ZIO.succeed(Chunk.empty),
@@ -192,8 +270,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         )
       },
       test("treats create conflict as idempotent when reload shows the same draft") {
-        val drafted =
-          ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+        val drafted = articleDrafted()
         val store = RecordingStore(
           loadResults = List(
             ZIO.succeed(Chunk.empty),
@@ -219,8 +296,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
       test("appends ArticlePublished with server time and expected version") {
         val drafted = SequencedArticleEvent(
           seq = 1L,
-          event =
-            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
+          event = articleDrafted(),
         )
         val store = RecordingStore(initialEvents = Chunk(drafted))
         val service = ArticleCommandService(store, FixedClock(999L))
@@ -234,8 +310,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
       test("rejects stale expected versions before appending") {
         val drafted = SequencedArticleEvent(
           seq = 1L,
-          event =
-            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
+          event = articleDrafted(),
         )
         val store = RecordingStore(
           initialEvents = Chunk(drafted),
@@ -252,8 +327,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
       test("maps append unavailability to StoreUnavailable") {
         val drafted = SequencedArticleEvent(
           seq = 1L,
-          event =
-            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
+          event = articleDrafted(),
         )
         val store = RecordingStore(
           initialEvents = Chunk(drafted),
@@ -278,7 +352,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         val events = Chunk(
           SequencedArticleEvent(
             1L,
-            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+            articleDrafted()
           ),
           SequencedArticleEvent(2L, ArticlePublished(publishedAt = 999L)),
         )
@@ -292,7 +366,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         val events = Chunk(
           SequencedArticleEvent(
             1L,
-            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+            articleDrafted()
           ),
           SequencedArticleEvent(2L, ArticlePublished(publishedAt = 999L)),
         )
@@ -308,7 +382,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
         val events = Chunk(
           SequencedArticleEvent(
             1L,
-            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body")
+            articleDrafted()
           ),
           SequencedArticleEvent(2L, ArticlePublished(publishedAt = 999L)),
         )
@@ -321,8 +395,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
       test("returns AlreadyPublished when append conflict reload shows the publish succeeded") {
         val drafted = SequencedArticleEvent(
           seq = 1L,
-          event =
-            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
+          event = articleDrafted(),
         )
         val published =
           SequencedArticleEvent(seq = 2L, event = ArticlePublished(publishedAt = 999L))
@@ -342,8 +415,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
       test("keeps append conflicts when reload does not show a published article") {
         val drafted = SequencedArticleEvent(
           seq = 1L,
-          event =
-            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
+          event = articleDrafted(),
         )
         val store = RecordingStore(
           loadResults = List(
@@ -361,8 +433,7 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
       test("maps reload unavailability after append conflict to StoreUnavailable") {
         val drafted = SequencedArticleEvent(
           seq = 1L,
-          event =
-            ArticleDrafted(Slug.applyUnsafe("hello-world"), Title.applyUnsafe("Hello"), "body"),
+          event = articleDrafted(),
         )
         val store = RecordingStore(
           loadResults = List(

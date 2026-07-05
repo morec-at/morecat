@@ -16,8 +16,7 @@ final case class PublishArticleCommand(
 )
 
 enum CommandError:
-  case InvalidSlug
-  case InvalidTitle
+  case InvalidDraft(errors: Chunk[ArticleDrafted.ValidationError])
   case SlugConflict
   case VersionConflict
   case ArticleNotFound
@@ -31,24 +30,18 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
 
   def createDraft(command: CreateDraftCommand): IO[CommandError, Unit] =
     ZIO
-      .fromEither(Slug.either(command.slug))
-      .mapError(_ => CommandError.InvalidSlug)
-      .flatMap { slug =>
-        ZIO
-          .fromEither(Title.either(command.title))
-          .mapError(_ => CommandError.InvalidTitle)
-          .flatMap { title =>
-            val event = ArticleDrafted(slug, title, command.body)
-            store.load(command.articleId).mapError(toCommandError).flatMap { events =>
-              if events.isEmpty then
-                store
-                  .createDraft(command.articleId, event)
-                  .mapError(toCommandError)
-                  .catchAll(recoverCreateDraftConflict(command.articleId, event))
-              else if hasSameInitialDraft(events, event) then ZIO.unit
-              else ZIO.fail(CommandError.VersionConflict)
-            }
-          }
+      .fromEither(ArticleDrafted.either(command.slug, command.title, command.body))
+      .mapError(errors => CommandError.InvalidDraft(Chunk.fromIterable(errors)))
+      .flatMap { event =>
+        store.load(command.articleId).mapError(toCommandError).flatMap { events =>
+          if events.isEmpty then
+            store
+              .createDraft(command.articleId, event)
+              .mapError(toCommandError)
+              .catchAll(recoverCreateDraftConflict(command.articleId, event))
+          else if hasSameInitialDraft(events, event) then ZIO.unit
+          else ZIO.fail(CommandError.VersionConflict)
+        }
       }
 
   def publish(command: PublishArticleCommand): IO[CommandError, PublishResult] =

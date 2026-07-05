@@ -1,5 +1,7 @@
 package morecat.domain
 
+import zio.*
+import zio.test.Assertion.*
 import zio.test.*
 
 object DomainSpec extends ZIOSpecDefault:
@@ -43,6 +45,31 @@ object DomainSpec extends ZIOSpecDefault:
         }
       },
     ),
+    suite("ArticleBody")(
+      test("accepts body content exactly at the byte limit") {
+        val body = "x" * ArticleBody.MaxBytes
+
+        assertTrue(ArticleBody.either(body).map(_.value) == Right(body))
+      },
+      test("rejects body content larger than the byte limit") {
+        val body = "x" * (ArticleBody.MaxBytes + 1)
+
+        assertTrue(ArticleBody.either(body) == Left(ArticleBody.Error.TooLarge))
+      },
+      test("uses UTF-8 bytes rather than character count") {
+        val body = "あ" * ((ArticleBody.MaxBytes / 3) + 1)
+
+        assertTrue(ArticleBody.either(body) == Left(ArticleBody.Error.TooLarge))
+      },
+      test("applyUnsafe returns the body value for valid content") {
+        assertTrue(ArticleBody.applyUnsafe("body").value == "body")
+      },
+      test("applyUnsafe throws for oversized content") {
+        val body = "x" * (ArticleBody.MaxBytes + 1)
+
+        assertZIO(ZIO.attempt(ArticleBody.applyUnsafe(body)).exit)(fails(anything))
+      },
+    ),
     suite("ArticleId")(
       test("fromString / asString round-trips any string") {
         check(Gen.string) { s =>
@@ -54,11 +81,37 @@ object DomainSpec extends ZIOSpecDefault:
       // schemaVersion は wire 契約の核。現行版を lock して不用意な変更を検出する。
       test("schemaVersion is fixed to the current version (1)") {
         assertTrue(
-          ArticleDrafted(Slug.applyUnsafe("a"), Title.applyUnsafe("t"), "body").schemaVersion ==
+          ArticleDrafted.applyUnsafe("a", "t", "body").schemaVersion ==
             ArticleDrafted.CurrentSchemaVersion,
           ArticlePublished(publishedAt = 0L).schemaVersion == ArticlePublished.CurrentSchemaVersion,
           ArticleDrafted.CurrentSchemaVersion == 1,
           ArticlePublished.CurrentSchemaVersion == 1,
+        )
+      },
+      test("ArticleDrafted smart constructor collects every validation error") {
+        val oversizedBody = "x" * (ArticleBody.MaxBytes + 1)
+
+        assertTrue(
+          ArticleDrafted.either("../bad", "", oversizedBody) == Left(
+            Seq(
+              ArticleDrafted.ValidationError.InvalidSlug,
+              ArticleDrafted.ValidationError.InvalidTitle,
+              ArticleDrafted.ValidationError.BodyTooLarge,
+            )
+          )
+        )
+      },
+      test("ArticleDrafted applyUnsafe throws for invalid draft content") {
+        assertZIO(ZIO.attempt(ArticleDrafted.applyUnsafe("../bad", "", "body")).exit)(
+          fails(anything)
+        )
+      },
+      test("ArticleDrafted stored-event constructor preserves oversized historical body") {
+        val body = "x" * (ArticleBody.MaxBytes + 1)
+
+        assertTrue(
+          ArticleDrafted.fromStoredEvent("hello-world", "Hello", body).map(_.body.value) ==
+            Right(body)
         )
       },
     ),
