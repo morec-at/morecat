@@ -34,12 +34,13 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
       .mapError(errors => CommandError.InvalidDraft(Chunk.fromIterable(errors)))
       .flatMap { event =>
         store.load(command.articleId).mapError(toCommandError).flatMap { events =>
-          if events.isEmpty then
+          val aggregate = ArticleAggregate.from(events)
+          if aggregate.currentVersion == 0L then
             store
               .createDraft(command.articleId, event)
               .mapError(toCommandError)
               .catchAll(recoverCreateDraftConflict(command.articleId, event))
-          else if hasSameInitialDraft(events, event) then ZIO.unit
+          else if aggregate.hasSameInitialDraft(event) then ZIO.unit
           else ZIO.fail(CommandError.VersionConflict)
         }
       }
@@ -47,10 +48,11 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
   def publish(command: PublishArticleCommand): IO[CommandError, PublishResult] =
     for
       events <- store.load(command.articleId).mapError(toCommandError)
+      aggregate = ArticleAggregate.from(events)
       result <-
-        if events.isEmpty then ZIO.fail(CommandError.ArticleNotFound)
-        else if alreadyPublished(events) then ZIO.succeed(PublishResult.AlreadyPublished)
-        else if currentVersion(events) != command.expectedVersion then
+        if aggregate.currentVersion == 0L then ZIO.fail(CommandError.ArticleNotFound)
+        else if aggregate.alreadyPublished then ZIO.succeed(PublishResult.AlreadyPublished)
+        else if aggregate.currentVersion != command.expectedVersion then
           ZIO.fail(CommandError.VersionConflict)
         else
           for
@@ -70,7 +72,7 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
     error match
       case CommandError.SlugConflict | CommandError.VersionConflict =>
         store.load(articleId).mapError(toCommandError).flatMap { events =>
-          if hasSameInitialDraft(events, event) then ZIO.unit
+          if ArticleAggregate.from(events).hasSameInitialDraft(event) then ZIO.unit
           else ZIO.fail(error)
         }
       case other => ZIO.fail(other)
@@ -81,7 +83,8 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
     error match
       case CommandError.VersionConflict =>
         store.load(articleId).mapError(toCommandError).flatMap { events =>
-          if alreadyPublished(events) then ZIO.succeed(PublishResult.AlreadyPublished)
+          if ArticleAggregate.from(events).alreadyPublished then
+            ZIO.succeed(PublishResult.AlreadyPublished)
           else ZIO.fail(error)
         }
       case other => ZIO.fail(other)
@@ -91,15 +94,3 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
       case EventStoreError.SlugAlreadyReserved => CommandError.SlugConflict
       case EventStoreError.VersionConflict     => CommandError.VersionConflict
       case EventStoreError.Unavailable(_)      => CommandError.StoreUnavailable
-
-  private def currentVersion(events: Chunk[SequencedArticleEvent]): Long =
-    events.map(_.seq).maxOption.getOrElse(0L)
-
-  private def alreadyPublished(events: Chunk[SequencedArticleEvent]): Boolean =
-    events.exists(_.event.isInstanceOf[ArticlePublished])
-
-  private def hasSameInitialDraft(
-    events: Chunk[SequencedArticleEvent],
-    event: ArticleDrafted
-  ): Boolean =
-    events.minByOption(_.seq).exists(_.event == event)
