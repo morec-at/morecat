@@ -1,7 +1,5 @@
-package morecat.application
+package morecat.domain
 
-import _root_.morecat.domain.*
-import zio.*
 import zio.test.*
 
 object ArticleAggregateSpec extends ZIOSpecDefault:
@@ -11,7 +9,7 @@ object ArticleAggregateSpec extends ZIOSpecDefault:
 
   def spec = suite("ArticleAggregate")(
     test("empty stream has version zero and no state") {
-      val aggregate = ArticleAggregate.from(Chunk.empty)
+      val aggregate = ArticleAggregate.from(Seq.empty)
 
       assertTrue(
         aggregate.currentVersion == 0L,
@@ -21,7 +19,7 @@ object ArticleAggregateSpec extends ZIOSpecDefault:
     },
     test("currentVersion is the highest sequenced event") {
       val aggregate = ArticleAggregate.from(
-        Chunk(
+        Seq(
           SequencedArticleEvent(seq = 1L, event = draft),
           SequencedArticleEvent(seq = 3L, event = ArticlePublished(publishedAt = 999L)),
         )
@@ -32,7 +30,7 @@ object ArticleAggregateSpec extends ZIOSpecDefault:
     test("initialDraft is taken from the earliest sequenced draft event") {
       val laterDraft = ArticleDrafted.applyUnsafe("hello-world", "Changed", "body")
       val aggregate = ArticleAggregate.from(
-        Chunk(
+        Seq(
           SequencedArticleEvent(seq = 2L, event = laterDraft),
           SequencedArticleEvent(seq = 1L, event = draft),
         )
@@ -46,7 +44,7 @@ object ArticleAggregateSpec extends ZIOSpecDefault:
     },
     test("alreadyPublished is true once the stream contains ArticlePublished") {
       val aggregate = ArticleAggregate.from(
-        Chunk(
+        Seq(
           SequencedArticleEvent(seq = 1L, event = draft),
           SequencedArticleEvent(seq = 2L, event = ArticlePublished(publishedAt = 999L)),
         )

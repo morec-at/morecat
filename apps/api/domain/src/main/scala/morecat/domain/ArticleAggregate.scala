@@ -1,7 +1,6 @@
-package morecat.application
+package morecat.domain
 
-import morecat.domain.*
-import zio.Chunk
+final case class SequencedArticleEvent(seq: Long, event: ArticleEvent)
 
 final case class ArticleAggregate private (
   currentVersion: Long,
@@ -12,8 +11,8 @@ final case class ArticleAggregate private (
     initialDraft.contains(event)
 
 object ArticleAggregate:
-  def from(events: Chunk[SequencedArticleEvent]): ArticleAggregate =
-    val sortedEvents = events.sortBy(_.seq)
+  def from(events: Iterable[SequencedArticleEvent]): ArticleAggregate =
+    val sortedEvents = events.toSeq.sortBy(_.seq)
 
     ArticleAggregate(
       currentVersion = sortedEvents.map(_.seq).maxOption.getOrElse(0L),
