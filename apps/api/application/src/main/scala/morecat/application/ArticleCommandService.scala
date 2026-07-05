@@ -35,7 +35,7 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
       .flatMap { event =>
         store.load(command.articleId).mapError(toCommandError).flatMap { events =>
           val aggregate = ArticleAggregate.from(events)
-          if aggregate.currentVersion == 0L then
+          if aggregate.isEmpty then
             store
               .createDraft(command.articleId, event)
               .mapError(toCommandError)
@@ -50,7 +50,7 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
       events <- store.load(command.articleId).mapError(toCommandError)
       aggregate = ArticleAggregate.from(events)
       result <-
-        if aggregate.currentVersion == 0L then ZIO.fail(CommandError.ArticleNotFound)
+        if aggregate.isEmpty then ZIO.fail(CommandError.ArticleNotFound)
         else if aggregate.alreadyPublished then ZIO.succeed(PublishResult.AlreadyPublished)
         else if aggregate.currentVersion != command.expectedVersion then
           ZIO.fail(CommandError.VersionConflict)

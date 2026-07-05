@@ -13,8 +13,20 @@ object ArticleAggregateSpec extends ZIOSpecDefault:
 
       assertTrue(
         aggregate.currentVersion == 0L,
+        aggregate.isEmpty,
         aggregate.initialDraft.isEmpty,
         !aggregate.alreadyPublished,
+      )
+    },
+    test("stream existence does not depend on currentVersion") {
+      val aggregate = ArticleAggregate.from(
+        Seq(SequencedArticleEvent(seq = 0L, event = draft))
+      )
+
+      assertTrue(
+        aggregate.currentVersion == 0L,
+        aggregate.exists,
+        !aggregate.isEmpty,
       )
     },
     test("currentVersion is the highest sequenced event") {
