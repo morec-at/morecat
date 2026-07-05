@@ -1,6 +1,6 @@
 package morecat.application
 
-import morecat.domain.*
+import _root_.morecat.domain.*
 import zio.*
 import zio.test.Assertion.*
 import zio.test.*

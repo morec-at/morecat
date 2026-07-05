@@ -11,15 +11,67 @@ sealed trait ArticleEvent:
   def schemaVersion: Int
 
 /** 下書き作成（初期 slug/title/body）。tags は slice2 以降。 */
-final case class ArticleDrafted(
+final case class ArticleDrafted private (
   slug: Slug,
   title: Title,
-  body: String,
+  body: ArticleBody,
 ) extends ArticleEvent:
   val schemaVersion: Int = ArticleDrafted.CurrentSchemaVersion
 
 object ArticleDrafted:
   val CurrentSchemaVersion: Int = 1
+
+  enum ValidationError:
+    case InvalidSlug
+    case InvalidTitle
+    case BodyTooLarge
+
+  def either(
+    slug: String,
+    title: String,
+    body: String,
+  ): Either[Seq[ValidationError], ArticleDrafted] =
+    val refinedSlug = Slug.either(slug).left.map(_ => ValidationError.InvalidSlug)
+    val refinedTitle = Title.either(title).left.map(_ => ValidationError.InvalidTitle)
+    val refinedBody = ArticleBody.either(body).left.map(_ => ValidationError.BodyTooLarge)
+    val errors =
+      List(refinedSlug.left.toOption, refinedTitle.left.toOption, refinedBody.left.toOption).flatten
+
+    if errors.nonEmpty then Left(errors)
+    else
+      Right(
+        ArticleDrafted(
+          refinedSlug.toOption.get,
+          refinedTitle.toOption.get,
+          refinedBody.toOption.get
+        )
+      )
+
+  def fromStoredEvent(
+    slug: String,
+    title: String,
+    body: String,
+  ): Either[Seq[ValidationError], ArticleDrafted] =
+    val refinedSlug = Slug.either(slug).left.map(_ => ValidationError.InvalidSlug)
+    val refinedTitle = Title.either(title).left.map(_ => ValidationError.InvalidTitle)
+    val errors =
+      List(refinedSlug.left.toOption, refinedTitle.left.toOption).flatten
+
+    if errors.nonEmpty then Left(errors)
+    else
+      Right(
+        ArticleDrafted(
+          refinedSlug.toOption.get,
+          refinedTitle.toOption.get,
+          ArticleBody.fromStoredEvent(body)
+        )
+      )
+
+  def applyUnsafe(slug: String, title: String, body: String): ArticleDrafted =
+    either(slug, title, body).fold(
+      errors => throw IllegalArgumentException(errors.mkString(",")),
+      identity,
+    )
 
 /** 公開。publishedAt はサーバ時刻（epoch millis）。 */
 final case class ArticlePublished(

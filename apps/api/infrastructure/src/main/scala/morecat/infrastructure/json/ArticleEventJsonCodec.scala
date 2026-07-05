@@ -11,9 +11,9 @@ object ArticleEventJsonCodec:
         WireArticleDrafted(
           eventType = "ArticleDrafted",
           schemaVersion = ArticleDrafted.CurrentSchemaVersion,
-          slug = slug,
-          title = title,
-          body = body,
+          slug = slug.toString,
+          title = title.toString,
+          body = body.value,
         ).toJson
       case ArticlePublished(publishedAt) =>
         WireArticlePublished(
@@ -37,9 +37,11 @@ object ArticleEventJsonCodec:
   private def toDomain(wire: WireArticleDrafted): Either[String, ArticleEvent] =
     for
       _ <- requireSchemaVersion(wire.schemaVersion, ArticleDrafted.CurrentSchemaVersion)
-      slug <- Slug.either(wire.slug)
-      title <- Title.either(wire.title)
-    yield ArticleDrafted(slug, title, wire.body)
+      event <- ArticleDrafted
+        .fromStoredEvent(wire.slug, wire.title, wire.body)
+        .left
+        .map(_.mkString(","))
+    yield event
 
   private def toDomain(wire: WireArticlePublished): Either[String, ArticleEvent] =
     for _ <- requireSchemaVersion(wire.schemaVersion, ArticlePublished.CurrentSchemaVersion)
