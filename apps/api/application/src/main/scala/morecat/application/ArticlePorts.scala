@@ -3,8 +3,6 @@ package morecat.application
 import morecat.domain.*
 import zio.*
 
-final case class SequencedArticleEvent(seq: Long, event: ArticleEvent)
-
 enum EventStoreError:
   case SlugAlreadyReserved
   case VersionConflict
