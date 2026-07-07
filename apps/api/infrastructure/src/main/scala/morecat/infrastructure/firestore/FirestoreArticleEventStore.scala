@@ -10,8 +10,16 @@ final class FirestoreArticleEventStore(backend: FirestoreEventStoreBackend)
 
   def createDraft(articleId: ArticleId, event: ArticleDrafted): IO[EventStoreError, Unit] =
     backend.runTransaction { tx =>
-      tx.createSlugReservation(event.slug, articleId) *>
-        tx.createArticleEvent(articleId, seq = 1L, ArticleEventJsonCodec.encode(event))
+      tx.createDocument(
+        FirestoreDocumentModel.slugReservationPath(event.slug),
+        FirestoreDocumentModel.slugReservationData(articleId),
+        EventStoreError.SlugAlreadyReserved,
+      ) *>
+        tx.createDocument(
+          FirestoreDocumentModel.articleEventPath(articleId, seq = 1L),
+          FirestoreDocumentModel.articleEventData(ArticleEventJsonCodec.encode(event)),
+          EventStoreError.VersionConflict,
+        )
     }
 
   def load(articleId: ArticleId): IO[EventStoreError, Chunk[SequencedArticleEvent]] =
@@ -32,9 +40,9 @@ final class FirestoreArticleEventStore(backend: FirestoreEventStoreBackend)
     event: ArticleEvent
   ): IO[EventStoreError, Unit] =
     backend.runTransaction { tx =>
-      tx.createArticleEvent(
-        articleId,
-        seq = expectedVersion + 1L,
-        ArticleEventJsonCodec.encode(event),
+      tx.createDocument(
+        FirestoreDocumentModel.articleEventPath(articleId, seq = expectedVersion + 1L),
+        FirestoreDocumentModel.articleEventData(ArticleEventJsonCodec.encode(event)),
+        EventStoreError.VersionConflict,
       )
     }
