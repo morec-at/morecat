@@ -79,6 +79,17 @@ object FirestoreArticleEventStoreSpec extends ZIOSpecDefault:
         Assertion.fails(Assertion.equalTo(EventStoreError.VersionConflict))
       )
     },
+    test("load maps undecodable stored events to Unavailable") {
+      val backend = InMemoryFirestoreEventStoreBackend.empty
+        .withRawEvent(articleId, 1L, """{"eventType":"Unknown"}""")
+      val store = FirestoreArticleEventStore(backend)
+
+      assertZIO(store.load(articleId).exit)(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.Unavailable("unsupported eventType: Unknown"))
+        )
+      )
+    },
   )
 
 private final class InMemoryFirestoreEventStoreBackend private (
@@ -95,10 +106,17 @@ private final class InMemoryFirestoreEventStoreBackend private (
     seq: Long,
     event: ArticleEvent,
   ): InMemoryFirestoreEventStoreBackend =
+    withRawEvent(articleId, seq, ArticleEventJsonCodec.encode(event))
+
+  def withRawEvent(
+    articleId: ArticleId,
+    seq: Long,
+    json: String,
+  ): InMemoryFirestoreEventStoreBackend =
     val articleEvents = events.getOrElse(articleId.asString, Map.empty)
     events = events.updated(
       articleId.asString,
-      articleEvents.updated(seq, ArticleEventJsonCodec.encode(event)),
+      articleEvents.updated(seq, json),
     )
     this
 
