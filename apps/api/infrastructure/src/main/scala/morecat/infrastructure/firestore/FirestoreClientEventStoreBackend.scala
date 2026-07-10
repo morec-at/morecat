@@ -42,6 +42,8 @@ final class FirestoreClientEventStoreBackend(client: FirestoreDocumentClient)
     error match
       case FirestoreClientError.AlreadyExists =>
         EventStoreError.Unavailable("unexpected Firestore create conflict")
+      case FirestoreClientError.Conflict(message) =>
+        EventStoreError.Unavailable(s"unexpected Firestore transaction conflict: $message")
       case FirestoreClientError.PermissionDenied(message) =>
         EventStoreError.Unavailable(s"firestore permission denied: $message")
       case FirestoreClientError.InvalidArgument(message) =>
@@ -59,6 +61,8 @@ private final class FirestoreClientEventStoreTransaction(tx: FirestoreDocumentTr
   ): IO[EventStoreError, Unit] =
     tx.create(path, data).mapError {
       case FirestoreClientError.AlreadyExists =>
+        alreadyExistsError
+      case FirestoreClientError.Conflict(_) =>
         alreadyExistsError
       case FirestoreClientError.PermissionDenied(message) =>
         EventStoreError.Unavailable(s"firestore permission denied: $message")

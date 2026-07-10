@@ -44,6 +44,8 @@ final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
     GoogleFirestoreErrorMapper.toClientError(error) match
       case FirestoreClientError.AlreadyExists =>
         EventStoreError.VersionConflict
+      case FirestoreClientError.Conflict(_) =>
+        EventStoreError.VersionConflict
       case FirestoreClientError.PermissionDenied(message) =>
         EventStoreError.Unavailable(s"firestore permission denied: $message")
       case FirestoreClientError.InvalidArgument(message) =>

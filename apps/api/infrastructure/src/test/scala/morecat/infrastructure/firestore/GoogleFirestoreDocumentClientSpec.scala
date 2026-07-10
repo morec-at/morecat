@@ -64,6 +64,17 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
         Assertion.fails(Assertion.equalTo(EventStoreError.VersionConflict))
       )
     },
+    test("transaction maps contention failures to VersionConflict") {
+      val operations = RecordingGoogleFirestoreOperations(
+        transactionFailure =
+          Some(Status.ABORTED.withDescription("transaction contention").asRuntimeException())
+      )
+      val client = GoogleFirestoreDocumentClient(operations)
+
+      assertZIO(client.transaction(_ => ZIO.succeed("unused")).exit)(
+        Assertion.fails(Assertion.equalTo(EventStoreError.VersionConflict))
+      )
+    },
     test("transaction maps permission failures with an observable message") {
       val operations = RecordingGoogleFirestoreOperations(
         transactionFailure =
@@ -143,6 +154,8 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
   )(error: FirestoreClientError): EventStoreError =
     error match
       case FirestoreClientError.AlreadyExists =>
+        alreadyExistsError
+      case FirestoreClientError.Conflict(_) =>
         alreadyExistsError
       case FirestoreClientError.PermissionDenied(message) =>
         EventStoreError.Unavailable(s"firestore permission denied: $message")

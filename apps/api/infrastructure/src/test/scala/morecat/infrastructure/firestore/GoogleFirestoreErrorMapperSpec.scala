@@ -26,6 +26,27 @@ object GoogleFirestoreErrorMapperSpec extends ZIOSpecDefault:
         GoogleFirestoreErrorMapper.toClientError(error) == FirestoreClientError.AlreadyExists
       )
     },
+    test("maps ABORTED FirestoreException failures to Conflict") {
+      val error = FirestoreException.forServerRejection(
+        Status.ABORTED,
+        "transaction contention"
+      )
+
+      assertTrue(
+        GoogleFirestoreErrorMapper.toClientError(error) ==
+          FirestoreClientError.Conflict("transaction contention")
+      )
+    },
+    test("maps FAILED_PRECONDITION gRPC failures to Conflict") {
+      val error = Status.FAILED_PRECONDITION
+        .withDescription("precondition failed")
+        .asRuntimeException()
+
+      assertTrue(
+        GoogleFirestoreErrorMapper.toClientError(error) ==
+          FirestoreClientError.Conflict("FAILED_PRECONDITION: precondition failed")
+      )
+    },
     test("maps PERMISSION_DENIED FirestoreException failures separately") {
       val error = FirestoreException.forServerRejection(
         Status.PERMISSION_DENIED,
