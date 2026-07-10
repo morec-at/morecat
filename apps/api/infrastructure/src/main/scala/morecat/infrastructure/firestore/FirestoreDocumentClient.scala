@@ -11,11 +11,12 @@ enum FirestoreClientError:
 
 trait FirestoreDocumentClient:
   def transaction[A](
-    effect: FirestoreDocumentClient => IO[EventStoreError, A]
+    effect: FirestoreDocumentTransaction => IO[EventStoreError, A]
   ): IO[EventStoreError, A]
-
-  def create(path: FirestoreDocumentPath, data: Map[String, String]): IO[FirestoreClientError, Unit]
 
   def listDocuments(
     path: FirestoreDocumentPath
   ): IO[FirestoreClientError, Chunk[FirestoreDocument]]
+
+trait FirestoreDocumentTransaction:
+  def create(path: FirestoreDocumentPath, data: Map[String, String]): IO[FirestoreClientError, Unit]

@@ -62,7 +62,7 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
           .exit
       )(Assertion.fails(Assertion.equalTo(EventStoreError.Unavailable("down"))))
     },
-    test("loadEvents reads the article events collection and parses seq document ids") {
+    test("loadEvents reads the article events collection and returns events sorted by seq") {
       val client = RecordingFirestoreDocumentClient(
         listedDocuments = Chunk(
           FirestoreDocument(
@@ -81,8 +81,8 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
       yield assertTrue(
         client.listed == List(FirestoreDocumentModel.articleEventsCollectionPath(articleId)),
         events == Chunk(
-          StoredFirestoreArticleEvent(2L, """{"eventType":"ArticlePublished"}"""),
           StoredFirestoreArticleEvent(1L, """{"eventType":"ArticleDrafted"}"""),
+          StoredFirestoreArticleEvent(2L, """{"eventType":"ArticlePublished"}"""),
         ),
       )
     },
@@ -137,7 +137,7 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
   )
 
 private final class RecordingFirestoreDocumentClient(
-  createResult: IO[FirestoreClientError, Unit] = ZIO.unit,
+  val createResult: IO[FirestoreClientError, Unit] = ZIO.unit,
   listedDocuments: Chunk[FirestoreDocument] = Chunk.empty,
   listResult: IO[FirestoreClientError, Unit] = ZIO.unit,
 ) extends FirestoreDocumentClient:
@@ -146,19 +146,11 @@ private final class RecordingFirestoreDocumentClient(
   var listed: List[FirestoreDocumentPath] = Nil
 
   def transaction[A](
-    effect: FirestoreDocumentClient => IO[EventStoreError, A]
+    effect: FirestoreDocumentTransaction => IO[EventStoreError, A]
   ): IO[EventStoreError, A] =
     ZIO.succeed {
       transactionCount = transactionCount + 1
-    } *> effect(this)
-
-  def create(
-    path: FirestoreDocumentPath,
-    data: Map[String, String]
-  ): IO[FirestoreClientError, Unit] =
-    createResult *> ZIO.succeed {
-      created = created :+ (path, data)
-    }
+    } *> effect(RecordingFirestoreDocumentTransaction(this))
 
   def listDocuments(
     path: FirestoreDocumentPath
@@ -166,3 +158,14 @@ private final class RecordingFirestoreDocumentClient(
     ZIO.succeed {
       listed = listed :+ path
     } *> listResult *> ZIO.succeed(listedDocuments)
+
+private final class RecordingFirestoreDocumentTransaction(client: RecordingFirestoreDocumentClient)
+    extends FirestoreDocumentTransaction:
+
+  def create(
+    path: FirestoreDocumentPath,
+    data: Map[String, String]
+  ): IO[FirestoreClientError, Unit] =
+    client.createResult *> ZIO.succeed {
+      client.created = client.created :+ (path, data)
+    }

@@ -17,18 +17,20 @@ final class FirestoreClientEventStoreBackend(client: FirestoreDocumentClient)
       .listDocuments(FirestoreDocumentModel.articleEventsCollectionPath(articleId))
       .mapError(toEventStoreError)
       .flatMap { documents =>
-        ZIO.foreach(documents) { document =>
-          for
-            seq <- parseSeq(document.id)
-            json <- ZIO
-              .fromOption(document.data.get(FirestoreDocumentModel.EventJsonField))
-              .orElseFail(
-                EventStoreError.Unavailable(
-                  s"missing Firestore field: ${FirestoreDocumentModel.EventJsonField}"
+        ZIO
+          .foreach(documents) { document =>
+            for
+              seq <- parseSeq(document.id)
+              json <- ZIO
+                .fromOption(document.data.get(FirestoreDocumentModel.EventJsonField))
+                .orElseFail(
+                  EventStoreError.Unavailable(
+                    s"missing Firestore field: ${FirestoreDocumentModel.EventJsonField}"
+                  )
                 )
-              )
-          yield StoredFirestoreArticleEvent(seq, json)
-        }
+            yield StoredFirestoreArticleEvent(seq, json)
+          }
+          .map(_.sortBy(_.seq))
       }
 
   private def parseSeq(value: String): IO[EventStoreError, Long] =
@@ -43,7 +45,7 @@ final class FirestoreClientEventStoreBackend(client: FirestoreDocumentClient)
       case FirestoreClientError.Unavailable(message) =>
         EventStoreError.Unavailable(message)
 
-private final class FirestoreClientEventStoreTransaction(client: FirestoreDocumentClient)
+private final class FirestoreClientEventStoreTransaction(tx: FirestoreDocumentTransaction)
     extends FirestoreEventStoreTransaction:
 
   def createDocument(
@@ -51,7 +53,7 @@ private final class FirestoreClientEventStoreTransaction(client: FirestoreDocume
     data: Map[String, String],
     alreadyExistsError: EventStoreError,
   ): IO[EventStoreError, Unit] =
-    client.create(path, data).mapError {
+    tx.create(path, data).mapError {
       case FirestoreClientError.AlreadyExists        => alreadyExistsError
       case FirestoreClientError.Unavailable(message) => EventStoreError.Unavailable(message)
     }
