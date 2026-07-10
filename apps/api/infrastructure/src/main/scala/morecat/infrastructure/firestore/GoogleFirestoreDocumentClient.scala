@@ -43,7 +43,11 @@ final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
   private def toEventStoreError(error: Throwable): EventStoreError =
     GoogleFirestoreErrorMapper.toClientError(error) match
       case FirestoreClientError.AlreadyExists =>
-        EventStoreError.Unavailable("unexpected Firestore document conflict")
+        EventStoreError.VersionConflict
+      case FirestoreClientError.PermissionDenied(message) =>
+        EventStoreError.Unavailable(s"firestore permission denied: $message")
+      case FirestoreClientError.InvalidArgument(message) =>
+        EventStoreError.Unavailable(s"invalid Firestore request: $message")
       case FirestoreClientError.Unavailable(message) =>
         EventStoreError.Unavailable(message)
 

@@ -62,6 +62,52 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
           .exit
       )(Assertion.fails(Assertion.equalTo(EventStoreError.Unavailable("down"))))
     },
+    test("createDocument maps permission failures with an observable message") {
+      val client =
+        RecordingFirestoreDocumentClient(createResult =
+          ZIO.fail(FirestoreClientError.PermissionDenied("iam denied"))
+        )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(
+        backend
+          .runTransaction(
+            _.createDocument(
+              FirestoreDocumentPath("slugs", "hello-world"),
+              Map("articleId" -> articleId.asString),
+              EventStoreError.SlugAlreadyReserved,
+            )
+          )
+          .exit
+      )(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.Unavailable("firestore permission denied: iam denied"))
+        )
+      )
+    },
+    test("createDocument maps invalid request failures with an observable message") {
+      val client =
+        RecordingFirestoreDocumentClient(createResult =
+          ZIO.fail(FirestoreClientError.InvalidArgument("bad request"))
+        )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(
+        backend
+          .runTransaction(
+            _.createDocument(
+              FirestoreDocumentPath("slugs", "hello-world"),
+              Map("articleId" -> articleId.asString),
+              EventStoreError.SlugAlreadyReserved,
+            )
+          )
+          .exit
+      )(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.Unavailable("invalid Firestore request: bad request"))
+        )
+      )
+    },
     test("loadEvents reads the article events collection and returns events sorted by seq") {
       val client = RecordingFirestoreDocumentClient(
         listedDocuments = Chunk(
@@ -121,6 +167,32 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
 
       assertZIO(backend.loadEvents(articleId).exit)(
         Assertion.fails(Assertion.equalTo(EventStoreError.Unavailable("down")))
+      )
+    },
+    test("loadEvents maps permission failures with an observable message") {
+      val client =
+        RecordingFirestoreDocumentClient(listResult =
+          ZIO.fail(FirestoreClientError.PermissionDenied("iam denied"))
+        )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(backend.loadEvents(articleId).exit)(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.Unavailable("firestore permission denied: iam denied"))
+        )
+      )
+    },
+    test("loadEvents maps invalid request failures with an observable message") {
+      val client =
+        RecordingFirestoreDocumentClient(listResult =
+          ZIO.fail(FirestoreClientError.InvalidArgument("bad request"))
+        )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(backend.loadEvents(articleId).exit)(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.Unavailable("invalid Firestore request: bad request"))
+        )
       )
     },
     test("loadEvents maps unexpected AlreadyExists to Unavailable") {

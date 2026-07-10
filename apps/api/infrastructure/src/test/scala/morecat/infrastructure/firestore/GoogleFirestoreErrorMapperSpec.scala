@@ -26,6 +26,25 @@ object GoogleFirestoreErrorMapperSpec extends ZIOSpecDefault:
         GoogleFirestoreErrorMapper.toClientError(error) == FirestoreClientError.AlreadyExists
       )
     },
+    test("maps PERMISSION_DENIED FirestoreException failures separately") {
+      val error = FirestoreException.forServerRejection(
+        Status.PERMISSION_DENIED,
+        "iam denied"
+      )
+
+      assertTrue(
+        GoogleFirestoreErrorMapper.toClientError(error) ==
+          FirestoreClientError.PermissionDenied("iam denied")
+      )
+    },
+    test("maps INVALID_ARGUMENT gRPC failures separately") {
+      val error = Status.INVALID_ARGUMENT.withDescription("bad request").asRuntimeException()
+
+      assertTrue(
+        GoogleFirestoreErrorMapper.toClientError(error) ==
+          FirestoreClientError.InvalidArgument("INVALID_ARGUMENT: bad request")
+      )
+    },
     test("unwraps ExecutionException before mapping Firestore failures") {
       val error =
         ExecutionException(

@@ -53,7 +53,7 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
         )
       )
     },
-    test("transaction maps unexpected ALREADY_EXISTS failures to StoreUnavailable") {
+    test("transaction maps unexpected ALREADY_EXISTS failures to VersionConflict") {
       val operations = RecordingGoogleFirestoreOperations(
         transactionFailure =
           Some(Status.ALREADY_EXISTS.withDescription("exists").asRuntimeException())
@@ -61,8 +61,38 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
       val client = GoogleFirestoreDocumentClient(operations)
 
       assertZIO(client.transaction(_ => ZIO.succeed("unused")).exit)(
+        Assertion.fails(Assertion.equalTo(EventStoreError.VersionConflict))
+      )
+    },
+    test("transaction maps permission failures with an observable message") {
+      val operations = RecordingGoogleFirestoreOperations(
+        transactionFailure =
+          Some(Status.PERMISSION_DENIED.withDescription("iam denied").asRuntimeException())
+      )
+      val client = GoogleFirestoreDocumentClient(operations)
+
+      assertZIO(client.transaction(_ => ZIO.succeed("unused")).exit)(
         Assertion.fails(
-          Assertion.equalTo(EventStoreError.Unavailable("unexpected Firestore document conflict"))
+          Assertion.equalTo(
+            EventStoreError.Unavailable(
+              "firestore permission denied: PERMISSION_DENIED: iam denied"
+            )
+          )
+        )
+      )
+    },
+    test("transaction maps invalid request failures with an observable message") {
+      val operations = RecordingGoogleFirestoreOperations(
+        transactionFailure =
+          Some(Status.INVALID_ARGUMENT.withDescription("bad request").asRuntimeException())
+      )
+      val client = GoogleFirestoreDocumentClient(operations)
+
+      assertZIO(client.transaction(_ => ZIO.succeed("unused")).exit)(
+        Assertion.fails(
+          Assertion.equalTo(
+            EventStoreError.Unavailable("invalid Firestore request: INVALID_ARGUMENT: bad request")
+          )
         )
       )
     },
@@ -112,8 +142,14 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
     alreadyExistsError: EventStoreError
   )(error: FirestoreClientError): EventStoreError =
     error match
-      case FirestoreClientError.AlreadyExists        => alreadyExistsError
-      case FirestoreClientError.Unavailable(message) => EventStoreError.Unavailable(message)
+      case FirestoreClientError.AlreadyExists =>
+        alreadyExistsError
+      case FirestoreClientError.PermissionDenied(message) =>
+        EventStoreError.Unavailable(s"firestore permission denied: $message")
+      case FirestoreClientError.InvalidArgument(message) =>
+        EventStoreError.Unavailable(s"invalid Firestore request: $message")
+      case FirestoreClientError.Unavailable(message) =>
+        EventStoreError.Unavailable(message)
 
 private final class RecordingGoogleFirestoreOperations(
   transactionFailure: Option[Throwable] = None,
