@@ -27,14 +27,17 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
         result == "created",
         operations.transactionCount == 1,
         operations.created == List((path, data)),
+        operations.committedCount == 1,
       )
     },
     test("transaction returns application errors from the callback") {
       val operations = RecordingGoogleFirestoreOperations()
       val client = GoogleFirestoreDocumentClient(operations)
 
-      assertZIO(client.transaction(_ => ZIO.fail(EventStoreError.VersionConflict)).exit)(
-        Assertion.fails(Assertion.equalTo(EventStoreError.VersionConflict))
+      for exit <- client.transaction(_ => ZIO.fail(EventStoreError.VersionConflict)).exit
+      yield assertTrue(
+        exit == Exit.fail(EventStoreError.VersionConflict),
+        operations.committedCount == 0,
       )
     },
     test("transaction maps Firestore failures to StoreUnavailable") {
@@ -119,6 +122,7 @@ private final class RecordingGoogleFirestoreOperations(
   listResult: Chunk[FirestoreDocument] = Chunk.empty,
 ) extends GoogleFirestoreOperations:
   var transactionCount: Int = 0
+  var committedCount: Int = 0
   var created: List[(FirestoreDocumentPath, Map[String, String])] = Nil
   var listed: List[FirestoreDocumentPath] = Nil
 
@@ -139,3 +143,6 @@ private final class RecordingGoogleFirestoreTransactionOperations(
   def create(path: FirestoreDocumentPath, data: Map[String, String]): Unit =
     operations.createFailure.foreach(throw _)
     operations.created = operations.created :+ (path, data)
+
+  override def commitCreates(): Unit =
+    operations.committedCount = operations.committedCount + 1

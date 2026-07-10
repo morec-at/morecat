@@ -1,5 +1,6 @@
 package morecat.infrastructure.firestore
 
+import com.google.cloud.firestore.FirestoreException
 import io.grpc.Status
 import zio.test.*
 
@@ -10,6 +11,16 @@ object GoogleFirestoreErrorMapperSpec extends ZIOSpecDefault:
   def spec = suite("GoogleFirestoreErrorMapper")(
     test("maps ALREADY_EXISTS gRPC failures to AlreadyExists") {
       val error = Status.ALREADY_EXISTS.withDescription("document exists").asRuntimeException()
+
+      assertTrue(
+        GoogleFirestoreErrorMapper.toClientError(error) == FirestoreClientError.AlreadyExists
+      )
+    },
+    test("maps ALREADY_EXISTS FirestoreException failures to AlreadyExists") {
+      val error = FirestoreException.forServerRejection(
+        Status.ALREADY_EXISTS,
+        "document exists"
+      )
 
       assertTrue(
         GoogleFirestoreErrorMapper.toClientError(error) == FirestoreClientError.AlreadyExists

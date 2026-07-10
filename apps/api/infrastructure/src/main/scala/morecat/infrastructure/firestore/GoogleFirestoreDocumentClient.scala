@@ -2,8 +2,10 @@ package morecat.infrastructure.firestore
 
 import morecat.application.EventStoreError
 import com.google.cloud.firestore.{Firestore, QueryDocumentSnapshot, Transaction}
+import io.grpc.Status
 import zio.*
 
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
 final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
@@ -16,9 +18,15 @@ final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
       .attemptBlocking {
         operations.runTransaction { transaction =>
           Unsafe.unsafe { implicit unsafe =>
-            Runtime.default.unsafe
+            val result = Runtime.default.unsafe
               .run(effect(GoogleFirestoreDocumentTransaction(transaction)).either)
               .getOrThrowFiberFailure()
+
+            result match
+              case Right(_) => transaction.commitCreates()
+              case Left(_)  => ()
+
+            result
           }
         }
       }
@@ -57,6 +65,7 @@ trait GoogleFirestoreOperations:
 
 trait GoogleFirestoreTransactionOperations:
   def create(path: FirestoreDocumentPath, data: Map[String, String]): Unit
+  def commitCreates(): Unit
 
 // $COVERAGE-OFF$
 object GoogleFirestoreOperations:
@@ -99,7 +108,22 @@ private final class LiveGoogleFirestoreTransactionOperations(
   transaction: Transaction,
 ) extends GoogleFirestoreTransactionOperations:
 
+  private val stagedCreates =
+    mutable.ArrayBuffer.empty[(FirestoreDocumentPath, Map[String, String])]
+
   def create(path: FirestoreDocumentPath, data: Map[String, String]): Unit =
-    val _ = transaction.create(firestore.document(path.asString), data.asJava)
-    ()
+    val document = firestore.document(path.asString)
+    val snapshot = transaction.get(document).get()
+
+    if snapshot.exists() then
+      throw Status.ALREADY_EXISTS
+        .withDescription(s"Firestore document already exists: ${path.asString}")
+        .asRuntimeException()
+
+    stagedCreates += path -> data
+
+  override def commitCreates(): Unit =
+    stagedCreates.foreach { case (path, data) =>
+      val _ = transaction.create(firestore.document(path.asString), data.asJava)
+    }
 // $COVERAGE-ON$
