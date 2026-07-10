@@ -160,24 +160,50 @@ private final class InMemoryTransaction(
   events: Ref[Map[String, Map[Long, String]]],
 ) extends FirestoreEventStoreTransaction:
 
-  def createSlugReservation(slug: Slug, articleId: ArticleId): IO[EventStoreError, Unit] =
+  def createDocument(
+    path: FirestoreDocumentPath,
+    data: Map[String, String],
+    alreadyExistsError: EventStoreError,
+  ): IO[EventStoreError, Unit] =
+    path.segments.toList match
+      case "slugs" :: slug :: Nil =>
+        createSlugReservation(
+          slug,
+          data(FirestoreDocumentModel.SlugArticleIdField),
+          alreadyExistsError,
+        )
+      case "articles" :: articleId :: "events" :: rawSeq :: Nil =>
+        createArticleEvent(
+          articleId,
+          rawSeq.toLong,
+          data(FirestoreDocumentModel.EventJsonField),
+          alreadyExistsError,
+        )
+      case other =>
+        ZIO.fail(EventStoreError.Unavailable(s"unsupported Firestore path: ${other.mkString("/")}"))
+
+  private def createSlugReservation(
+    slug: String,
+    articleId: String,
+    alreadyExistsError: EventStoreError,
+  ): IO[EventStoreError, Unit] =
     slugs.modify { current =>
-      val slugValue = slug.toString
-      if current.contains(slugValue) then (ZIO.fail(EventStoreError.SlugAlreadyReserved), current)
-      else (ZIO.unit, current.updated(slugValue, articleId.asString))
+      if current.contains(slug) then (ZIO.fail(alreadyExistsError), current)
+      else (ZIO.unit, current.updated(slug, articleId))
     }.flatten
 
-  def createArticleEvent(
-    articleId: ArticleId,
+  private def createArticleEvent(
+    articleId: String,
     seq: Long,
     json: String,
+    alreadyExistsError: EventStoreError,
   ): IO[EventStoreError, Unit] =
     events.modify { current =>
-      val articleEvents = current.getOrElse(articleId.asString, Map.empty)
-      if articleEvents.contains(seq) then (ZIO.fail(EventStoreError.VersionConflict), current)
+      val articleEvents = current.getOrElse(articleId, Map.empty)
+      if articleEvents.contains(seq) then (ZIO.fail(alreadyExistsError), current)
       else
         (
           ZIO.unit,
-          current.updated(articleId.asString, articleEvents.updated(seq, json)),
+          current.updated(articleId, articleEvents.updated(seq, json)),
         )
     }.flatten
