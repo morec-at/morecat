@@ -19,3 +19,8 @@ result-*
 # Env (各 app スコープ。秘匿情報を含むため深さを問わず untracked に)
 .env.local
 .env.*.local
+
+# Firebase emulator logs
+/apps/api/firebase-debug.log
+/apps/api/firestore-debug.log
+/apps/api/ui-debug.log

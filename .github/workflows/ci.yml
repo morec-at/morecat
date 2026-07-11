@@ -47,7 +47,8 @@ jobs:
           path: |
             ~/.sbt
             ~/.cache/coursier
-          key: ${{ runner.os }}-sbt-${{ hashFiles('apps/api/build.sbt', 'apps/api/project/build.properties', 'apps/api/project/plugins.sbt', 'apps/api/.scalafmt.conf') }}
+            ~/.cache/firebase/emulators
+          key: ${{ runner.os }}-sbt-${{ hashFiles('apps/api/build.sbt', 'apps/api/project/build.properties', 'apps/api/project/plugins.sbt', 'apps/api/.scalafmt.conf', 'apps/api/firebase.json', 'flake.lock') }}
           restore-keys: |
             ${{ runner.os }}-sbt-
 
@@ -55,6 +56,10 @@ jobs:
         run: |
           nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors scalafmtCheckAll clean'
           nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors coverage domain/test application/test infrastructure/test coverageAggregate'
+
+      - name: Firestore emulator integration tests (apps/api)
+        run: |
+          nix develop .#scala --command bash -c 'cd apps/api && firebase emulators:exec --only firestore --project demo-morecat "sbt -batch -no-colors \"infrastructure / FirestoreIntegration / test\""'
 
       - name: Upload coverage report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

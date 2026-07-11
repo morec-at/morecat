@@ -7,6 +7,8 @@ val ironVersion = "3.3.1"
 val zioJsonVersion = "0.9.0"
 val googleCloudFirestoreVersion = "3.43.1"
 
+lazy val FirestoreIntegration = config("firestoreIntegration") extend Test
+
 ThisBuild / scalaVersion := scala3
 ThisBuild / organization := "morecat"
 ThisBuild / version      := "0.1.0-SNAPSHOT"
@@ -63,6 +65,7 @@ lazy val application = project
 lazy val infrastructure = project
   .in(file("infrastructure"))
   .dependsOn(application)
+  .configs(FirestoreIntegration)
   .settings(
     name := "morecat-infrastructure",
     libraryDependencies ++= Seq(
@@ -73,4 +76,5 @@ lazy val infrastructure = project
       "dev.zio" %% "zio-test-sbt" % zioVersion % Test,
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    inConfig(FirestoreIntegration)(Defaults.testSettings),
   )

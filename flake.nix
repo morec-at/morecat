@@ -15,7 +15,7 @@
         jdk = pkgs.jdk25;
         sbt = pkgs.sbt.override { jre = jdk; };
 
-        scalaPkgs = [ jdk sbt pkgs.coursier ]; # apps/api
+        scalaPkgs = [ jdk sbt pkgs.coursier pkgs.firebase-tools ]; # apps/api
         rustPkgs = [ pkgs.cargo pkgs.rustc pkgs.rustfmt pkgs.clippy ]; # apps/rmu
         nodePkgs = [ pkgs.nodejs_22 ]; # apps/ui
 
