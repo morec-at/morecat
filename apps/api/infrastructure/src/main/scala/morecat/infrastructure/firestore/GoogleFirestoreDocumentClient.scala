@@ -145,7 +145,7 @@ private final class LiveGoogleFirestoreTransactionOperations(
   private val stagedCreates =
     mutable.ArrayBuffer.empty[(FirestoreDocumentPath, Map[String, String])]
 
-  def create(path: FirestoreDocumentPath, data: Map[String, String]): Unit =
+  override def create(path: FirestoreDocumentPath, data: Map[String, String]): Unit =
     val document = firestore.document(path.asString)
     val snapshot = transaction.get(document).get()
 

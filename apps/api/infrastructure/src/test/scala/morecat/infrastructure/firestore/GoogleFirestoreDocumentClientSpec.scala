@@ -270,7 +270,7 @@ private final class RecordingGoogleFirestoreTransactionOperations(
   operations: RecordingGoogleFirestoreOperations
 ) extends GoogleFirestoreTransactionOperations:
 
-  def create(path: FirestoreDocumentPath, data: Map[String, String]): Unit =
+  override def create(path: FirestoreDocumentPath, data: Map[String, String]): Unit =
     operations.createAttemptCount = operations.createAttemptCount + 1
     if operations.retryAbortedCreateOnce && operations.createAttemptCount == 1 then
       throw Status.ABORTED.withDescription("transaction contention").asRuntimeException()
