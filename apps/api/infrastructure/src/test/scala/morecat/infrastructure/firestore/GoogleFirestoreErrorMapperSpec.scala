@@ -37,6 +37,25 @@ object GoogleFirestoreErrorMapperSpec extends ZIOSpecDefault:
           FirestoreClientError.Conflict("transaction contention")
       )
     },
+    test("returns an unwrapped ABORTED Firestore cause for transaction retry") {
+      val cause = FirestoreException.forServerRejection(
+        Status.ABORTED,
+        "transaction contention"
+      )
+
+      assertTrue(
+        GoogleFirestoreErrorMapper.abortedCause(ExecutionException(cause)).contains(cause)
+      )
+    },
+    test("does not retry non-ABORTED Firestore failures") {
+      val grpcError = Status.FAILED_PRECONDITION.asRuntimeException()
+      val otherError = RuntimeException("failed")
+
+      assertTrue(
+        GoogleFirestoreErrorMapper.abortedCause(grpcError).isEmpty,
+        GoogleFirestoreErrorMapper.abortedCause(otherError).isEmpty,
+      )
+    },
     test("maps FAILED_PRECONDITION gRPC failures to Conflict") {
       val error = Status.FAILED_PRECONDITION
         .withDescription("precondition failed")

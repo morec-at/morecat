@@ -123,6 +123,22 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
         Assertion.fails(Assertion.equalTo(EventStoreError.SlugAlreadyReserved))
       )
     },
+    test("transaction lets Firestore retry an ABORTED create") {
+      val operations = RecordingGoogleFirestoreOperations(retryAbortedCreateOnce = true)
+      val client = GoogleFirestoreDocumentClient(operations)
+
+      for result <- client.transaction { tx =>
+          tx.create(path, data)
+            .mapError(toEventStoreError(EventStoreError.SlugAlreadyReserved))
+            .as("created")
+        }
+      yield assertTrue(
+        result == "created",
+        operations.callbackCount == 2,
+        operations.createAttemptCount == 2,
+        operations.committedCount == 1,
+      )
+    },
     test("listDocuments delegates and returns Firestore documents") {
       val documents = Chunk(FirestoreDocument("1", data))
       val operations = RecordingGoogleFirestoreOperations(listResult = documents)
@@ -169,8 +185,11 @@ private final class RecordingGoogleFirestoreOperations(
   val createFailure: Option[Throwable] = None,
   listFailure: Option[Throwable] = None,
   listResult: Chunk[FirestoreDocument] = Chunk.empty,
+  val retryAbortedCreateOnce: Boolean = false,
 ) extends GoogleFirestoreOperations:
   var transactionCount: Int = 0
+  var callbackCount: Int = 0
+  var createAttemptCount: Int = 0
   var committedCount: Int = 0
   var created: List[(FirestoreDocumentPath, Map[String, String])] = Nil
   var listed: List[FirestoreDocumentPath] = Nil
@@ -178,7 +197,13 @@ private final class RecordingGoogleFirestoreOperations(
   def runTransaction[A](callback: GoogleFirestoreTransactionOperations => A): A =
     transactionFailure.foreach(throw _)
     transactionCount = transactionCount + 1
-    callback(RecordingGoogleFirestoreTransactionOperations(this))
+    callbackCount = callbackCount + 1
+    try callback(RecordingGoogleFirestoreTransactionOperations(this))
+    catch
+      case error: io.grpc.StatusRuntimeException
+          if retryAbortedCreateOnce && error.getStatus.getCode == Status.Code.ABORTED =>
+        callbackCount = callbackCount + 1
+        callback(RecordingGoogleFirestoreTransactionOperations(this))
 
   def listDocuments(path: FirestoreDocumentPath): Chunk[FirestoreDocument] =
     listFailure.foreach(throw _)
@@ -190,6 +215,9 @@ private final class RecordingGoogleFirestoreTransactionOperations(
 ) extends GoogleFirestoreTransactionOperations:
 
   def create(path: FirestoreDocumentPath, data: Map[String, String]): Unit =
+    operations.createAttemptCount = operations.createAttemptCount + 1
+    if operations.retryAbortedCreateOnce && operations.createAttemptCount == 1 then
+      throw Status.ABORTED.withDescription("transaction contention").asRuntimeException()
     operations.createFailure.foreach(throw _)
     operations.created = operations.created :+ (path, data)
 

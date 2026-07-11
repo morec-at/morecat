@@ -43,7 +43,7 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
           .exit
       )(Assertion.fails(Assertion.equalTo(EventStoreError.SlugAlreadyReserved)))
     },
-    test("createDocument maps transaction conflicts to the caller supplied conflict") {
+    test("createDocument maps transaction conflicts to VersionConflict") {
       val client = RecordingFirestoreDocumentClient(createResult =
         ZIO.fail(FirestoreClientError.Conflict("transaction contention"))
       )
@@ -59,7 +59,7 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
             )
           )
           .exit
-      )(Assertion.fails(Assertion.equalTo(EventStoreError.SlugAlreadyReserved)))
+      )(Assertion.fails(Assertion.equalTo(EventStoreError.VersionConflict)))
     },
     test("createDocument maps client unavailability to EventStoreError.Unavailable") {
       val client =

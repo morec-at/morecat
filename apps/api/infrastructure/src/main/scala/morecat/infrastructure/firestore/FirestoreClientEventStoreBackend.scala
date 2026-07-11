@@ -63,7 +63,7 @@ private final class FirestoreClientEventStoreTransaction(tx: FirestoreDocumentTr
       case FirestoreClientError.AlreadyExists =>
         alreadyExistsError
       case FirestoreClientError.Conflict(_) =>
-        alreadyExistsError
+        EventStoreError.VersionConflict
       case FirestoreClientError.PermissionDenied(message) =>
         EventStoreError.Unavailable(s"firestore permission denied: $message")
       case FirestoreClientError.InvalidArgument(message) =>

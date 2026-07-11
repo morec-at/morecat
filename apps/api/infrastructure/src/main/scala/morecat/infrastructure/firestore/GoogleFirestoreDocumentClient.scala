@@ -18,9 +18,14 @@ final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
       .attemptBlocking {
         operations.runTransaction { transaction =>
           Unsafe.unsafe { implicit unsafe =>
-            val result = Runtime.default.unsafe
-              .run(effect(GoogleFirestoreDocumentTransaction(transaction)).either)
-              .getOrThrowFiberFailure()
+            val result =
+              try
+                Runtime.default.unsafe
+                  .run(effect(GoogleFirestoreDocumentTransaction(transaction)).either)
+                  .getOrThrowFiberFailure()
+              catch
+                case failure: FiberFailure =>
+                  throw failure.cause.asInstanceOf[Cause[Throwable]].squash
 
             result match
               case Right(_) => transaction.commitCreates()
@@ -63,7 +68,11 @@ private final class GoogleFirestoreDocumentTransaction(
   ): IO[FirestoreClientError, Unit] =
     ZIO
       .attemptBlocking(transaction.create(path, data))
-      .mapError(GoogleFirestoreErrorMapper.toClientError)
+      .catchAll { error =>
+        GoogleFirestoreErrorMapper.abortedCause(error) match
+          case Some(cause) => ZIO.die(cause)
+          case None        => ZIO.fail(GoogleFirestoreErrorMapper.toClientError(error))
+      }
 
 trait GoogleFirestoreOperations:
   def runTransaction[A](callback: GoogleFirestoreTransactionOperations => A): A

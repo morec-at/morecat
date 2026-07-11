@@ -6,18 +6,34 @@ import io.grpc.{Status, StatusRuntimeException}
 import java.util.concurrent.{CompletionException, ExecutionException}
 
 object GoogleFirestoreErrorMapper:
+  def abortedCause(error: Throwable): Option[Throwable] =
+    unwrap(error) match
+      case firestoreError: FirestoreException
+          if firestoreError.getStatus.getCode == Status.Code.ABORTED =>
+        Some(firestoreError)
+      case grpcError: StatusRuntimeException
+          if grpcError.getStatus.getCode == Status.Code.ABORTED =>
+        Some(grpcError)
+      case _ =>
+        None
+
   def toClientError(error: Throwable): FirestoreClientError =
-    error match
-      case wrapped: ExecutionException if wrapped.getCause != null =>
-        toClientError(wrapped.getCause)
-      case wrapped: CompletionException if wrapped.getCause != null =>
-        toClientError(wrapped.getCause)
+    unwrap(error) match
       case firestoreError: FirestoreException =>
         toClientError(firestoreError.getStatus.getCode, messageOf(firestoreError))
       case grpcError: StatusRuntimeException =>
         toClientError(grpcError.getStatus.getCode, messageOf(grpcError))
       case other =>
         FirestoreClientError.Unavailable(messageOf(other))
+
+  private def unwrap(error: Throwable): Throwable =
+    error match
+      case wrapped: ExecutionException if wrapped.getCause != null =>
+        unwrap(wrapped.getCause)
+      case wrapped: CompletionException if wrapped.getCause != null =>
+        unwrap(wrapped.getCause)
+      case other =>
+        other
 
   private def toClientError(
     code: Status.Code,
