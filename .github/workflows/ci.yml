@@ -52,14 +52,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-sbt-
 
-      - name: Format check, compile, test & coverage (apps/api)
+      - name: Format check & clean (apps/api)
         run: |
           nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors scalafmtCheckAll clean'
-          nix develop .#scala --command bash -c 'cd apps/api && sbt -batch -no-colors coverage domain/test application/test infrastructure/test coverageAggregate'
 
-      - name: Firestore emulator integration tests (apps/api)
+      - name: Unit, Firestore integration & coverage (apps/api)
         run: |
-          nix develop .#scala --command bash -c 'cd apps/api && firebase emulators:exec --only firestore --project demo-morecat "sbt -batch -no-colors \"infrastructure / FirestoreIntegration / test\""'
+          nix develop .#scala --command bash -c 'cd apps/api && firebase emulators:exec --only firestore --project demo-morecat "sbt -batch -no-colors coverage domain/test application/test infrastructure/test \"infrastructure / FirestoreIntegration / test\" coverageAggregate"'
 
       - name: Upload coverage report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

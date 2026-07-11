@@ -102,7 +102,6 @@ trait GoogleFirestoreTransactionOperations:
   def create(path: FirestoreDocumentPath, data: Map[String, String]): Unit
   def commitCreates(): Unit
 
-// $COVERAGE-OFF$
 object GoogleFirestoreOperations:
   def fromFirestore(firestore: Firestore): GoogleFirestoreOperations =
     LiveGoogleFirestoreOperations(firestore)
@@ -160,4 +159,3 @@ private final class LiveGoogleFirestoreTransactionOperations(
     stagedCreates.foreach { case (path, data) =>
       val _ = transaction.create(firestore.document(path.asString), data.asJava)
     }
-// $COVERAGE-ON$

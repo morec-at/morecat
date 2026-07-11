@@ -26,9 +26,14 @@ object GoogleFirestoreIntegrationSpec extends ZIOSpecDefault:
                 .create(second, Map("value" -> "two"))
                 .mapError(FirestoreEventStoreErrorMapper.create(EventStoreError.VersionConflict))
           }
+          documents <- client.listDocuments(FirestoreDocumentPath(collection))
           firstSnapshot  <- ZIO.attemptBlocking(firestore.document(first.asString).get().get())
           secondSnapshot <- ZIO.attemptBlocking(firestore.document(second.asString).get().get())
         yield assertTrue(
+          documents.map(document => document.id -> document.data).toMap == Map(
+            "first" -> Map("value" -> "one"),
+            "second" -> Map("value" -> "two"),
+          ),
           firstSnapshot.exists(),
           firstSnapshot.getString("value") == "one",
           secondSnapshot.exists(),
@@ -75,6 +80,15 @@ object GoogleFirestoreIntegrationSpec extends ZIOSpecDefault:
         )
       }
     },
+    test("preserves callback defects wrapped by the Firestore SDK") {
+      withFirestore { (_, client) =>
+        val defect = RuntimeException("callback bug")
+
+        assertZIO(client.transaction(_ => ZIO.die(defect)).exit)(
+          Assertion.dies(Assertion.equalTo(defect))
+        )
+      }
+    },
     test("rejects non-string fields read through the Firestore SDK") {
       withFirestore { (firestore, client) =>
         val collection = uniqueCollection()
@@ -94,8 +108,12 @@ object GoogleFirestoreIntegrationSpec extends ZIOSpecDefault:
   ) @@ TestAspect.sequential
 
   private def withFirestore(
-    effect: (Firestore, FirestoreDocumentClient) => ZIO[Any, Throwable | EventStoreError, TestResult]
-  ): ZIO[Any, Throwable | EventStoreError, TestResult] =
+    effect: (Firestore, FirestoreDocumentClient) => ZIO[
+      Any,
+      Throwable | EventStoreError | FirestoreClientError,
+      TestResult,
+    ]
+  ): ZIO[Any, Throwable | EventStoreError | FirestoreClientError, TestResult] =
     ZIO.scoped {
       ZIO
         .acquireRelease(ZIO.attempt(createFirestore()))(firestore =>
