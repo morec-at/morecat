@@ -5,6 +5,7 @@ import com.google.cloud.firestore.{Firestore, QueryDocumentSnapshot, Transaction
 import io.grpc.Status
 import zio.*
 
+import java.util.concurrent.ExecutionException
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
@@ -14,29 +15,37 @@ final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
   def transaction[A](
     effect: FirestoreDocumentTransaction => IO[EventStoreError, A]
   ): IO[EventStoreError, A] =
-    ZIO
-      .attemptBlocking {
-        operations.runTransaction { transaction =>
-          Unsafe.unsafe { implicit unsafe =>
-            val result =
-              try
-                Runtime.default.unsafe
-                  .run(effect(GoogleFirestoreDocumentTransaction(transaction)).either)
-                  .getOrThrowFiberFailure()
-              catch
-                case failure: FiberFailure =>
-                  throw failure.cause.asInstanceOf[Cause[Throwable]].squash
+    ZIO.runtime[Any].flatMap { runtime =>
+      ZIO
+        .attemptBlocking {
+          operations.runTransaction { transaction =>
+            Unsafe.unsafe { implicit unsafe =>
+              val result =
+                try
+                  runtime.unsafe
+                    .run(effect(GoogleFirestoreDocumentTransaction(transaction)).either)
+                    .getOrThrowFiberFailure()
+                catch
+                  case failure: FiberFailure =>
+                    val cause = failure.cause.asInstanceOf[Cause[Throwable]].squash
+                    GoogleFirestoreErrorMapper.abortedCause(cause) match
+                      case Some(aborted) => throw aborted
+                      case None          => throw TransactionCallbackDefect(cause)
 
-            result match
-              case Right(_) => transaction.commitCreates()
-              case Left(_)  => ()
+              result match
+                case Right(_) => transaction.commitCreates()
+                case Left(_)  => ()
 
-            result
+              result
+            }
           }
         }
-      }
-      .mapError(toEventStoreError)
-      .flatMap(ZIO.fromEither)
+        .catchAll {
+          case TransactionCallbackDefect(cause) => ZIO.die(cause)
+          case error                            => ZIO.fail(toEventStoreError(error))
+        }
+        .flatMap(ZIO.fromEither)
+    }
 
   def listDocuments(
     path: FirestoreDocumentPath
@@ -57,6 +66,8 @@ final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
         EventStoreError.InvalidArgument(message)
       case FirestoreClientError.Unavailable(message) =>
         EventStoreError.Unavailable(message)
+
+private final case class TransactionCallbackDefect(cause: Throwable) extends RuntimeException(cause)
 
 private final class GoogleFirestoreDocumentTransaction(
   transaction: GoogleFirestoreTransactionOperations
@@ -91,13 +102,18 @@ private final class LiveGoogleFirestoreOperations(firestore: Firestore)
     extends GoogleFirestoreOperations:
 
   def runTransaction[A](callback: GoogleFirestoreTransactionOperations => A): A =
-    firestore
-      .runTransaction(
-        new Transaction.Function[A]:
-          def updateCallback(transaction: Transaction): A =
-            callback(LiveGoogleFirestoreTransactionOperations(firestore, transaction))
-      )
-      .get()
+    try
+      firestore
+        .runTransaction(
+          new Transaction.Function[A]:
+            def updateCallback(transaction: Transaction): A =
+              callback(LiveGoogleFirestoreTransactionOperations(firestore, transaction))
+        )
+        .get()
+    catch
+      case wrapped: ExecutionException
+          if wrapped.getCause.isInstanceOf[TransactionCallbackDefect] =>
+        throw wrapped.getCause
 
   def listDocuments(path: FirestoreDocumentPath): Chunk[FirestoreDocument] =
     Chunk.fromIterable(

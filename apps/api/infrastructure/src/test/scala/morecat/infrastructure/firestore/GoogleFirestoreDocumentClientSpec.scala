@@ -40,6 +40,25 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
         operations.committedCount == 0,
       )
     },
+    test("transaction callback inherits the current FiberRef values") {
+      val operations = RecordingGoogleFirestoreOperations()
+      val client = GoogleFirestoreDocumentClient(operations)
+
+      for
+        fiberRef <- FiberRef.make("default")
+        _ <- fiberRef.set("request-context")
+        result <- client.transaction(_ => fiberRef.get)
+      yield assertTrue(result == "request-context")
+    },
+    test("transaction preserves callback defects") {
+      val operations = RecordingGoogleFirestoreOperations()
+      val client = GoogleFirestoreDocumentClient(operations)
+      val defect = RuntimeException("callback bug")
+
+      assertZIO(client.transaction(_ => ZIO.die(defect)).exit)(
+        Assertion.dies(Assertion.equalTo(defect))
+      )
+    },
     test("transaction maps Firestore failures to StoreUnavailable") {
       val operations = RecordingGoogleFirestoreOperations(
         transactionFailure =
