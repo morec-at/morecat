@@ -42,7 +42,7 @@ final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
         }
         .catchAll {
           case TransactionCallbackDefect(cause) => ZIO.die(cause)
-          case error                            => ZIO.fail(toEventStoreError(error))
+          case error => ZIO.fail(FirestoreEventStoreErrorMapper.transaction(error))
         }
         .flatMap(ZIO.fromEither)
     }
@@ -53,19 +53,6 @@ final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
     ZIO
       .attemptBlocking(operations.listDocuments(path))
       .mapError(GoogleFirestoreErrorMapper.toClientError)
-
-  private def toEventStoreError(error: Throwable): EventStoreError =
-    GoogleFirestoreErrorMapper.toClientError(error) match
-      case FirestoreClientError.AlreadyExists =>
-        EventStoreError.VersionConflict
-      case FirestoreClientError.Conflict(_) =>
-        EventStoreError.VersionConflict
-      case FirestoreClientError.PermissionDenied(message) =>
-        EventStoreError.PermissionDenied(message)
-      case FirestoreClientError.InvalidArgument(message) =>
-        EventStoreError.InvalidArgument(message)
-      case FirestoreClientError.Unavailable(message) =>
-        EventStoreError.Unavailable(message)
 
 private final case class TransactionCallbackDefect(cause: Throwable) extends RuntimeException(cause)
 

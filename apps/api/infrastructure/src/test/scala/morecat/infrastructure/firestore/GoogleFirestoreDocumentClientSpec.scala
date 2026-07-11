@@ -20,7 +20,7 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
 
       for result <- client.transaction { tx =>
           tx.create(path, data)
-            .mapError(toEventStoreError(EventStoreError.VersionConflict))
+            .mapError(FirestoreEventStoreErrorMapper.create(EventStoreError.VersionConflict))
             .as("created")
         }
       yield assertTrue(
@@ -133,7 +133,9 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
       assertZIO(
         client
           .transaction(
-            _.create(path, data).mapError(toEventStoreError(EventStoreError.SlugAlreadyReserved))
+            _.create(path, data).mapError(
+              FirestoreEventStoreErrorMapper.create(EventStoreError.SlugAlreadyReserved)
+            )
           )
           .exit
       )(
@@ -146,7 +148,9 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
 
       for result <- client.transaction { tx =>
           tx.create(path, data)
-            .mapError(toEventStoreError(EventStoreError.SlugAlreadyReserved))
+            .mapError(
+              FirestoreEventStoreErrorMapper.create(EventStoreError.SlugAlreadyReserved)
+            )
             .as("created")
         }
       yield assertTrue(
@@ -181,21 +185,6 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
       )
     },
   )
-
-  private def toEventStoreError(
-    alreadyExistsError: EventStoreError
-  )(error: FirestoreClientError): EventStoreError =
-    error match
-      case FirestoreClientError.AlreadyExists =>
-        alreadyExistsError
-      case FirestoreClientError.Conflict(_) =>
-        alreadyExistsError
-      case FirestoreClientError.PermissionDenied(message) =>
-        EventStoreError.PermissionDenied(message)
-      case FirestoreClientError.InvalidArgument(message) =>
-        EventStoreError.InvalidArgument(message)
-      case FirestoreClientError.Unavailable(message) =>
-        EventStoreError.Unavailable(message)
 
 private final class RecordingGoogleFirestoreOperations(
   transactionFailure: Option[Throwable] = None,
