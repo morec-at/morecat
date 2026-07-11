@@ -42,8 +42,10 @@ object GoogleFirestoreErrorMapper:
     code match
       case Status.Code.ALREADY_EXISTS =>
         FirestoreClientError.AlreadyExists
-      case Status.Code.ABORTED | Status.Code.FAILED_PRECONDITION =>
+      case Status.Code.ABORTED =>
         FirestoreClientError.Conflict(message)
+      case Status.Code.FAILED_PRECONDITION =>
+        FirestoreClientError.FailedPrecondition(message)
       case Status.Code.PERMISSION_DENIED =>
         FirestoreClientError.PermissionDenied(message)
       case Status.Code.INVALID_ARGUMENT =>

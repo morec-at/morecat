@@ -56,14 +56,14 @@ object GoogleFirestoreErrorMapperSpec extends ZIOSpecDefault:
         GoogleFirestoreErrorMapper.abortedCause(otherError).isEmpty,
       )
     },
-    test("maps FAILED_PRECONDITION gRPC failures to Conflict") {
+    test("maps FAILED_PRECONDITION gRPC failures separately") {
       val error = Status.FAILED_PRECONDITION
         .withDescription("precondition failed")
         .asRuntimeException()
 
       assertTrue(
         GoogleFirestoreErrorMapper.toClientError(error) ==
-          FirestoreClientError.Conflict("FAILED_PRECONDITION: precondition failed")
+          FirestoreClientError.FailedPrecondition("FAILED_PRECONDITION: precondition failed")
       )
     },
     test("maps PERMISSION_DENIED FirestoreException failures separately") {

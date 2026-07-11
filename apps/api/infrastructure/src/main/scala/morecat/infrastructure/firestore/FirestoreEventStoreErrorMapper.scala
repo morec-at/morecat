@@ -10,6 +10,8 @@ private[firestore] object FirestoreEventStoreErrorMapper:
     error match
       case FirestoreClientError.AlreadyExists | FirestoreClientError.Conflict(_) =>
         EventStoreError.VersionConflict
+      case FirestoreClientError.FailedPrecondition(message) =>
+        EventStoreError.FailedPrecondition(message)
       case FirestoreClientError.PermissionDenied(message) =>
         EventStoreError.PermissionDenied(message)
       case FirestoreClientError.InvalidArgument(message) =>
@@ -23,6 +25,8 @@ private[firestore] object FirestoreEventStoreErrorMapper:
         EventStoreError.Unavailable("unexpected Firestore create conflict")
       case FirestoreClientError.Conflict(message) =>
         EventStoreError.Unavailable(s"unexpected Firestore transaction conflict: $message")
+      case FirestoreClientError.FailedPrecondition(message) =>
+        EventStoreError.FailedPrecondition(message)
       case FirestoreClientError.PermissionDenied(message) =>
         EventStoreError.PermissionDenied(message)
       case FirestoreClientError.InvalidArgument(message) =>
@@ -38,6 +42,8 @@ private[firestore] object FirestoreEventStoreErrorMapper:
         alreadyExistsError
       case FirestoreClientError.Conflict(_) =>
         EventStoreError.VersionConflict
+      case FirestoreClientError.FailedPrecondition(message) =>
+        EventStoreError.FailedPrecondition(message)
       case FirestoreClientError.PermissionDenied(message) =>
         EventStoreError.PermissionDenied(message)
       case FirestoreClientError.InvalidArgument(message) =>

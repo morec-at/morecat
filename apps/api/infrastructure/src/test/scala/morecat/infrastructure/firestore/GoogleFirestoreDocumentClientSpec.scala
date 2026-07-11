@@ -94,6 +94,22 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
         Assertion.fails(Assertion.equalTo(EventStoreError.VersionConflict))
       )
     },
+    test("transaction preserves non-retryable failed preconditions") {
+      val operations = RecordingGoogleFirestoreOperations(
+        transactionFailure = Some(
+          Status.FAILED_PRECONDITION.withDescription("precondition failed").asRuntimeException()
+        )
+      )
+      val client = GoogleFirestoreDocumentClient(operations)
+
+      assertZIO(client.transaction(_ => ZIO.succeed("unused")).exit)(
+        Assertion.fails(
+          Assertion.equalTo(
+            EventStoreError.FailedPrecondition("FAILED_PRECONDITION: precondition failed")
+          )
+        )
+      )
+    },
     test("transaction preserves non-retryable permission failures") {
       val operations = RecordingGoogleFirestoreOperations(
         transactionFailure =

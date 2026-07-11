@@ -8,6 +8,7 @@ final case class FirestoreDocument(id: String, data: Map[String, String])
 enum FirestoreClientError:
   case AlreadyExists
   case Conflict(message: String)
+  case FailedPrecondition(message: String)
   case PermissionDenied(message: String)
   case InvalidArgument(message: String)
   case Unavailable(message: String)

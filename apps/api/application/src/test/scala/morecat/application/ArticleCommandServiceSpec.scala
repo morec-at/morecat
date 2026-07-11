@@ -143,6 +143,18 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           fails(equalTo(CommandError.StoreFailure)),
         )
       },
+      test("maps failed store preconditions to non-retryable StoreFailure") {
+        val store = RecordingStore(
+          createDraftResult = ZIO.fail(EventStoreError.FailedPrecondition("precondition failed"))
+        )
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        assertZIO(
+          service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body")).exit
+        )(
+          fails(equalTo(CommandError.StoreFailure)),
+        )
+      },
       test("rejects invalid slug before touching the store") {
         val store = RecordingStore()
         val service = ArticleCommandService(store, FixedClock(123L))

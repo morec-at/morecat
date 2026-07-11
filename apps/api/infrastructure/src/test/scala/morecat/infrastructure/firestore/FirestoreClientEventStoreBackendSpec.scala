@@ -61,6 +61,28 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
           .exit
       )(Assertion.fails(Assertion.equalTo(EventStoreError.VersionConflict)))
     },
+    test("createDocument preserves non-retryable failed preconditions") {
+      val client = RecordingFirestoreDocumentClient(createResult =
+        ZIO.fail(FirestoreClientError.FailedPrecondition("precondition failed"))
+      )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(
+        backend
+          .runTransaction(
+            _.createDocument(
+              FirestoreDocumentPath("slugs", "hello-world"),
+              Map("articleId" -> articleId.asString),
+              EventStoreError.SlugAlreadyReserved,
+            )
+          )
+          .exit
+      )(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.FailedPrecondition("precondition failed"))
+        )
+      )
+    },
     test("createDocument maps client unavailability to EventStoreError.Unavailable") {
       val client =
         RecordingFirestoreDocumentClient(createResult =
@@ -210,6 +232,18 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
       assertZIO(backend.loadEvents(articleId).exit)(
         Assertion.fails(
           Assertion.equalTo(EventStoreError.InvalidArgument("bad request"))
+        )
+      )
+    },
+    test("loadEvents preserves non-retryable failed preconditions") {
+      val client = RecordingFirestoreDocumentClient(listResult =
+        ZIO.fail(FirestoreClientError.FailedPrecondition("precondition failed"))
+      )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(backend.loadEvents(articleId).exit)(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.FailedPrecondition("precondition failed"))
         )
       )
     },
