@@ -119,6 +119,30 @@ object ArticleCommandServiceSpec extends ZIOSpecDefault:
           fails(equalTo(CommandError.StoreUnavailable)),
         )
       },
+      test("maps store permission failures to non-retryable StoreFailure") {
+        val store = RecordingStore(
+          loadResults = List(ZIO.fail(EventStoreError.PermissionDenied("iam denied")))
+        )
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        assertZIO(
+          service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body")).exit
+        )(
+          fails(equalTo(CommandError.StoreFailure)),
+        )
+      },
+      test("maps invalid store arguments to non-retryable StoreFailure") {
+        val store = RecordingStore(
+          createDraftResult = ZIO.fail(EventStoreError.InvalidArgument("bad request"))
+        )
+        val service = ArticleCommandService(store, FixedClock(123L))
+
+        assertZIO(
+          service.createDraft(CreateDraftCommand(articleId, "hello-world", "Hello", "body")).exit
+        )(
+          fails(equalTo(CommandError.StoreFailure)),
+        )
+      },
       test("rejects invalid slug before touching the store") {
         val store = RecordingStore()
         val service = ArticleCommandService(store, FixedClock(123L))

@@ -52,9 +52,9 @@ final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
       case FirestoreClientError.Conflict(_) =>
         EventStoreError.VersionConflict
       case FirestoreClientError.PermissionDenied(message) =>
-        EventStoreError.Unavailable(s"firestore permission denied: $message")
+        EventStoreError.PermissionDenied(message)
       case FirestoreClientError.InvalidArgument(message) =>
-        EventStoreError.Unavailable(s"invalid Firestore request: $message")
+        EventStoreError.InvalidArgument(message)
       case FirestoreClientError.Unavailable(message) =>
         EventStoreError.Unavailable(message)
 

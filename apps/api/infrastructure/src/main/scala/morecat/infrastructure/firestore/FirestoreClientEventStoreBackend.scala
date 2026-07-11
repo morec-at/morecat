@@ -45,9 +45,9 @@ final class FirestoreClientEventStoreBackend(client: FirestoreDocumentClient)
       case FirestoreClientError.Conflict(message) =>
         EventStoreError.Unavailable(s"unexpected Firestore transaction conflict: $message")
       case FirestoreClientError.PermissionDenied(message) =>
-        EventStoreError.Unavailable(s"firestore permission denied: $message")
+        EventStoreError.PermissionDenied(message)
       case FirestoreClientError.InvalidArgument(message) =>
-        EventStoreError.Unavailable(s"invalid Firestore request: $message")
+        EventStoreError.InvalidArgument(message)
       case FirestoreClientError.Unavailable(message) =>
         EventStoreError.Unavailable(message)
 
@@ -65,9 +65,9 @@ private final class FirestoreClientEventStoreTransaction(tx: FirestoreDocumentTr
       case FirestoreClientError.Conflict(_) =>
         EventStoreError.VersionConflict
       case FirestoreClientError.PermissionDenied(message) =>
-        EventStoreError.Unavailable(s"firestore permission denied: $message")
+        EventStoreError.PermissionDenied(message)
       case FirestoreClientError.InvalidArgument(message) =>
-        EventStoreError.Unavailable(s"invalid Firestore request: $message")
+        EventStoreError.InvalidArgument(message)
       case FirestoreClientError.Unavailable(message) =>
         EventStoreError.Unavailable(message)
     }

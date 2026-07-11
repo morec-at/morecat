@@ -6,6 +6,8 @@ import zio.*
 enum EventStoreError:
   case SlugAlreadyReserved
   case VersionConflict
+  case PermissionDenied(message: String)
+  case InvalidArgument(message: String)
   case Unavailable(message: String)
 
 trait ArticleEventStore:

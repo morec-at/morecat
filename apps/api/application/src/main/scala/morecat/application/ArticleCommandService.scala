@@ -20,6 +20,7 @@ enum CommandError:
   case SlugConflict
   case VersionConflict
   case ArticleNotFound
+  case StoreFailure
   case StoreUnavailable
 
 enum PublishResult:
@@ -93,4 +94,6 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
     error match
       case EventStoreError.SlugAlreadyReserved => CommandError.SlugConflict
       case EventStoreError.VersionConflict     => CommandError.VersionConflict
+      case EventStoreError.PermissionDenied(_) => CommandError.StoreFailure
+      case EventStoreError.InvalidArgument(_)  => CommandError.StoreFailure
       case EventStoreError.Unavailable(_)      => CommandError.StoreUnavailable

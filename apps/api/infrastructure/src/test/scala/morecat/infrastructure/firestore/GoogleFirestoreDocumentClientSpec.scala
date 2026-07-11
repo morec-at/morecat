@@ -75,7 +75,7 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
         Assertion.fails(Assertion.equalTo(EventStoreError.VersionConflict))
       )
     },
-    test("transaction maps permission failures with an observable message") {
+    test("transaction preserves non-retryable permission failures") {
       val operations = RecordingGoogleFirestoreOperations(
         transactionFailure =
           Some(Status.PERMISSION_DENIED.withDescription("iam denied").asRuntimeException())
@@ -85,14 +85,12 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
       assertZIO(client.transaction(_ => ZIO.succeed("unused")).exit)(
         Assertion.fails(
           Assertion.equalTo(
-            EventStoreError.Unavailable(
-              "firestore permission denied: PERMISSION_DENIED: iam denied"
-            )
+            EventStoreError.PermissionDenied("PERMISSION_DENIED: iam denied")
           )
         )
       )
     },
-    test("transaction maps invalid request failures with an observable message") {
+    test("transaction preserves non-retryable invalid arguments") {
       val operations = RecordingGoogleFirestoreOperations(
         transactionFailure =
           Some(Status.INVALID_ARGUMENT.withDescription("bad request").asRuntimeException())
@@ -102,7 +100,7 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
       assertZIO(client.transaction(_ => ZIO.succeed("unused")).exit)(
         Assertion.fails(
           Assertion.equalTo(
-            EventStoreError.Unavailable("invalid Firestore request: INVALID_ARGUMENT: bad request")
+            EventStoreError.InvalidArgument("INVALID_ARGUMENT: bad request")
           )
         )
       )
@@ -174,9 +172,9 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
       case FirestoreClientError.Conflict(_) =>
         alreadyExistsError
       case FirestoreClientError.PermissionDenied(message) =>
-        EventStoreError.Unavailable(s"firestore permission denied: $message")
+        EventStoreError.PermissionDenied(message)
       case FirestoreClientError.InvalidArgument(message) =>
-        EventStoreError.Unavailable(s"invalid Firestore request: $message")
+        EventStoreError.InvalidArgument(message)
       case FirestoreClientError.Unavailable(message) =>
         EventStoreError.Unavailable(message)
 

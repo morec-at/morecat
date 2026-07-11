@@ -80,7 +80,7 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
           .exit
       )(Assertion.fails(Assertion.equalTo(EventStoreError.Unavailable("down"))))
     },
-    test("createDocument maps permission failures with an observable message") {
+    test("createDocument preserves non-retryable permission failures") {
       val client =
         RecordingFirestoreDocumentClient(createResult =
           ZIO.fail(FirestoreClientError.PermissionDenied("iam denied"))
@@ -99,11 +99,11 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
           .exit
       )(
         Assertion.fails(
-          Assertion.equalTo(EventStoreError.Unavailable("firestore permission denied: iam denied"))
+          Assertion.equalTo(EventStoreError.PermissionDenied("iam denied"))
         )
       )
     },
-    test("createDocument maps invalid request failures with an observable message") {
+    test("createDocument preserves non-retryable invalid arguments") {
       val client =
         RecordingFirestoreDocumentClient(createResult =
           ZIO.fail(FirestoreClientError.InvalidArgument("bad request"))
@@ -122,7 +122,7 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
           .exit
       )(
         Assertion.fails(
-          Assertion.equalTo(EventStoreError.Unavailable("invalid Firestore request: bad request"))
+          Assertion.equalTo(EventStoreError.InvalidArgument("bad request"))
         )
       )
     },
@@ -187,7 +187,7 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
         Assertion.fails(Assertion.equalTo(EventStoreError.Unavailable("down")))
       )
     },
-    test("loadEvents maps permission failures with an observable message") {
+    test("loadEvents preserves non-retryable permission failures") {
       val client =
         RecordingFirestoreDocumentClient(listResult =
           ZIO.fail(FirestoreClientError.PermissionDenied("iam denied"))
@@ -196,11 +196,11 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
 
       assertZIO(backend.loadEvents(articleId).exit)(
         Assertion.fails(
-          Assertion.equalTo(EventStoreError.Unavailable("firestore permission denied: iam denied"))
+          Assertion.equalTo(EventStoreError.PermissionDenied("iam denied"))
         )
       )
     },
-    test("loadEvents maps invalid request failures with an observable message") {
+    test("loadEvents preserves non-retryable invalid arguments") {
       val client =
         RecordingFirestoreDocumentClient(listResult =
           ZIO.fail(FirestoreClientError.InvalidArgument("bad request"))
@@ -209,7 +209,7 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
 
       assertZIO(backend.loadEvents(articleId).exit)(
         Assertion.fails(
-          Assertion.equalTo(EventStoreError.Unavailable("invalid Firestore request: bad request"))
+          Assertion.equalTo(EventStoreError.InvalidArgument("bad request"))
         )
       )
     },
