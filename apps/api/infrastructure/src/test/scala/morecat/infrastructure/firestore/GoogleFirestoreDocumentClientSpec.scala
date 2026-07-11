@@ -72,6 +72,15 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
         )
       )
     },
+    test("transaction preserves unexpected bridge failures as defects") {
+      val defect = RuntimeException("bridge bug")
+      val operations = RecordingGoogleFirestoreOperations(transactionFailure = Some(defect))
+      val client = GoogleFirestoreDocumentClient(operations)
+
+      assertZIO(client.transaction(_ => ZIO.succeed("unused")).exit)(
+        Assertion.dies(Assertion.equalTo(defect))
+      )
+    },
     test("transaction maps unexpected ALREADY_EXISTS failures to VersionConflict") {
       val operations = RecordingGoogleFirestoreOperations(
         transactionFailure =
@@ -156,6 +165,22 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
           .exit
       )(
         Assertion.fails(Assertion.equalTo(EventStoreError.SlugAlreadyReserved))
+      )
+    },
+    test("transaction create preserves unexpected bridge failures as defects") {
+      val defect = RuntimeException("bridge bug")
+      val operations = RecordingGoogleFirestoreOperations(createFailure = Some(defect))
+      val client = GoogleFirestoreDocumentClient(operations)
+
+      assertZIO(
+        client
+          .transaction(
+            _.create(path, data)
+              .mapError(FirestoreEventStoreErrorMapper.create(EventStoreError.VersionConflict))
+          )
+          .exit
+      )(
+        Assertion.dies(Assertion.equalTo(defect))
       )
     },
     test("transaction lets Firestore retry an ABORTED create") {
@@ -248,6 +273,15 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
         Assertion.fails(
           Assertion.equalTo(FirestoreClientError.Unavailable("UNAVAILABLE: firestore down"))
         )
+      )
+    },
+    test("listDocuments preserves unexpected bridge failures as defects") {
+      val defect = RuntimeException("bridge bug")
+      val operations = RecordingGoogleFirestoreOperations(listFailure = Some(defect))
+      val client = GoogleFirestoreDocumentClient(operations)
+
+      assertZIO(client.listDocuments(FirestoreDocumentPath("articles")).exit)(
+        Assertion.dies(Assertion.equalTo(defect))
       )
     },
   )

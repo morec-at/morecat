@@ -24,7 +24,7 @@ object GoogleFirestoreErrorMapper:
       case grpcError: StatusRuntimeException =>
         toClientError(grpcError.getStatus.getCode, messageOf(grpcError))
       case other =>
-        FirestoreClientError.Unavailable(messageOf(other))
+        throw other
 
   private def unwrap(error: Throwable): Throwable =
     error match

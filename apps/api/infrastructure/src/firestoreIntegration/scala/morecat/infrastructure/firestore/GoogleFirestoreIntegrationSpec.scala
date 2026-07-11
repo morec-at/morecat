@@ -60,6 +60,35 @@ object GoogleFirestoreIntegrationSpec extends ZIOSpecDefault:
         yield assert(exit)(Assertion.fails(Assertion.equalTo(EventStoreError.SlugAlreadyReserved)))
       }
     },
+    test("maps one of two concurrent creates to the caller supplied error") {
+      withTwoClients { (firstClient, secondClient) =>
+        val path = FirestoreDocumentPath(uniqueCollection(), "contended")
+
+        for
+          ready <- Ref.make(0)
+          start <- Promise.make[Nothing, Unit]
+          create = (client: FirestoreDocumentClient) =>
+            client.transaction { transaction =>
+              for
+                readyCount <- ready.updateAndGet(_ + 1)
+                _ <- ZIO.when(readyCount == 2)(start.succeed(()))
+                _ <- start.await.timeoutFail(
+                  EventStoreError.Unavailable("concurrent transaction callback did not start")
+                )(10.seconds)
+                _ <- transaction
+                  .create(path, Map("value" -> "created"))
+                  .mapError(
+                    FirestoreEventStoreErrorMapper.create(EventStoreError.SlugAlreadyReserved)
+                  )
+              yield ()
+            }
+          exits <- ZIO.collectAllPar(List(create(firstClient).exit, create(secondClient).exit))
+        yield assertTrue(
+          exits.count(_ == Exit.succeed(())) == 1,
+          exits.count(_ == Exit.fail(EventStoreError.SlugAlreadyReserved)) == 1,
+        )
+      }
+    },
     test("does not commit staged creates when the callback returns an application error") {
       withFirestore { (firestore, client) =>
         val path = FirestoreDocumentPath(uniqueCollection(), "rolled-back")
@@ -126,6 +155,32 @@ object GoogleFirestoreIntegrationSpec extends ZIOSpecDefault:
           )
         }
     }
+
+  private def withTwoClients(
+    effect: (
+      FirestoreDocumentClient,
+      FirestoreDocumentClient,
+    ) => ZIO[Any, EventStoreError, TestResult]
+  ): ZIO[Any, Throwable | EventStoreError, TestResult] =
+    ZIO.scoped {
+      for
+        firstFirestore  <- firestoreResource
+        secondFirestore <- firestoreResource
+        result <- effect(
+          GoogleFirestoreDocumentClient(
+            GoogleFirestoreOperations.fromFirestore(firstFirestore)
+          ),
+          GoogleFirestoreDocumentClient(
+            GoogleFirestoreOperations.fromFirestore(secondFirestore)
+          ),
+        )
+      yield result
+    }
+
+  private def firestoreResource: ZIO[Scope, Throwable, Firestore] =
+    ZIO.acquireRelease(ZIO.attempt(createFirestore()))(firestore =>
+      ZIO.attempt(firestore.close()).orDie
+    )
 
   private def createFirestore(): Firestore =
     val emulatorHost = sys.env.getOrElse(

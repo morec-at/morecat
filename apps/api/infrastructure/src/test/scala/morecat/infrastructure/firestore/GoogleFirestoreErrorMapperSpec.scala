@@ -1,7 +1,8 @@
 package morecat.infrastructure.firestore
 
 import com.google.cloud.firestore.FirestoreException
-import io.grpc.Status
+import io.grpc.{Status, StatusRuntimeException}
+import zio.*
 import zio.test.*
 
 import java.util.concurrent.{CompletionException, ExecutionException}
@@ -105,20 +106,18 @@ object GoogleFirestoreErrorMapperSpec extends ZIOSpecDefault:
         GoogleFirestoreErrorMapper.toClientError(error) == FirestoreClientError.AlreadyExists
       )
     },
-    test("keeps wrapper messages when ExecutionException has no cause") {
+    test("preserves a cause-less ExecutionException as a defect") {
       val error = ExecutionException("wrapper only", null)
 
-      assertTrue(
-        GoogleFirestoreErrorMapper.toClientError(error) ==
-          FirestoreClientError.Unavailable("wrapper only")
+      assertZIO(ZIO.succeed(GoogleFirestoreErrorMapper.toClientError(error)).exit)(
+        Assertion.dies(Assertion.equalTo(error))
       )
     },
-    test("keeps wrapper messages when CompletionException has no cause") {
+    test("preserves a cause-less CompletionException as a defect") {
       val error = CompletionException("wrapper only", null)
 
-      assertTrue(
-        GoogleFirestoreErrorMapper.toClientError(error) ==
-          FirestoreClientError.Unavailable("wrapper only")
+      assertZIO(ZIO.succeed(GoogleFirestoreErrorMapper.toClientError(error)).exit)(
+        Assertion.dies(Assertion.equalTo(error))
       )
     },
     test("maps other failures to Unavailable with the failure message") {
@@ -129,12 +128,20 @@ object GoogleFirestoreErrorMapperSpec extends ZIOSpecDefault:
           FirestoreClientError.Unavailable("UNAVAILABLE: firestore down")
       )
     },
-    test("falls back to toString when failures have no message") {
-      val error = RuntimeException(null: String)
+    test("falls back to toString when a recognized failure has no message") {
+      val error = new StatusRuntimeException(Status.UNAVAILABLE):
+        override def getMessage: String = null
 
       assertTrue(
         GoogleFirestoreErrorMapper.toClientError(error) ==
-          FirestoreClientError.Unavailable("java.lang.RuntimeException")
+          FirestoreClientError.Unavailable(error.toString)
+      )
+    },
+    test("preserves an unexpected failure as a defect") {
+      val error = RuntimeException(null: String)
+
+      assertZIO(ZIO.succeed(GoogleFirestoreErrorMapper.toClientError(error)).exit)(
+        Assertion.dies(Assertion.equalTo(error))
       )
     },
   )
