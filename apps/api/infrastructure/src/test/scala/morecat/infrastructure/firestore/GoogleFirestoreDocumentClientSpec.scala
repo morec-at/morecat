@@ -171,6 +171,56 @@ object GoogleFirestoreDocumentClientSpec extends ZIOSpecDefault:
         operations.listed == List(FirestoreDocumentPath("articles", "id", "events")),
       )
     },
+    test("document decoder preserves string fields") {
+      val result = GoogleFirestoreDocumentDecoder.decode(
+        "1",
+        Map("json" -> "payload"),
+      )
+
+      assertTrue(result == FirestoreDocument("1", Map("json" -> "payload")))
+    },
+    test("document decoder rejects non-string fields with type context") {
+      assertZIO(
+        ZIO
+          .attempt(
+            GoogleFirestoreDocumentDecoder.decode(
+              "1",
+              Map("seq" -> Long.box(1L)),
+            )
+          )
+          .mapError(GoogleFirestoreErrorMapper.toClientError)
+          .exit
+      )(
+        Assertion.fails(
+          Assertion.equalTo(
+            FirestoreClientError.InvalidArgument(
+              "INVALID_ARGUMENT: Firestore document 1 field seq must be a string, found java.lang.Long"
+            )
+          )
+        )
+      )
+    },
+    test("document decoder reports null fields without exposing values") {
+      assertZIO(
+        ZIO
+          .attempt(
+            GoogleFirestoreDocumentDecoder.decode(
+              "1",
+              Map("json" -> null),
+            )
+          )
+          .mapError(GoogleFirestoreErrorMapper.toClientError)
+          .exit
+      )(
+        Assertion.fails(
+          Assertion.equalTo(
+            FirestoreClientError.InvalidArgument(
+              "INVALID_ARGUMENT: Firestore document 1 field json must be a string, found null"
+            )
+          )
+        )
+      )
+    },
     test("listDocuments maps Firestore failures") {
       val operations = RecordingGoogleFirestoreOperations(
         listFailure =

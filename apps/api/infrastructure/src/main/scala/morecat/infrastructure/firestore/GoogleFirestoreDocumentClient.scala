@@ -1,7 +1,7 @@
 package morecat.infrastructure.firestore
 
 import morecat.application.EventStoreError
-import com.google.cloud.firestore.{Firestore, QueryDocumentSnapshot, Transaction}
+import com.google.cloud.firestore.{Firestore, Transaction}
 import io.grpc.Status
 import zio.*
 
@@ -53,6 +53,28 @@ final class GoogleFirestoreDocumentClient(operations: GoogleFirestoreOperations)
     ZIO
       .attemptBlocking(operations.listDocuments(path))
       .mapError(GoogleFirestoreErrorMapper.toClientError)
+
+private[firestore] object GoogleFirestoreDocumentDecoder:
+  def decode(id: String, data: Map[String, Object]): FirestoreDocument =
+    FirestoreDocument(
+      id,
+      data.map {
+        case (key, value: String) => key -> value
+        case (key, null)          => throw invalidFieldType(id, key, "null")
+        case (key, value)         => throw invalidFieldType(id, key, value.getClass.getName)
+      },
+    )
+
+  private def invalidFieldType(
+    documentId: String,
+    field: String,
+    actualType: String,
+  ): Throwable =
+    Status.INVALID_ARGUMENT
+      .withDescription(
+        s"Firestore document $documentId field $field must be a string, found $actualType"
+      )
+      .asRuntimeException()
 
 private final case class TransactionCallbackDefect(cause: Throwable) extends RuntimeException(cause)
 
@@ -110,15 +132,9 @@ private final class LiveGoogleFirestoreOperations(firestore: Firestore)
         .get()
         .getDocuments
         .asScala
-        .map(toDocument)
-    )
-
-  private def toDocument(snapshot: QueryDocumentSnapshot): FirestoreDocument =
-    FirestoreDocument(
-      snapshot.getId,
-      snapshot.getData.asScala.collect { case (key, value: String) =>
-        key -> value
-      }.toMap,
+        .map(snapshot =>
+          GoogleFirestoreDocumentDecoder.decode(snapshot.getId, snapshot.getData.asScala.toMap)
+        )
     )
 
 private final class LiveGoogleFirestoreTransactionOperations(
