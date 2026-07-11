@@ -146,6 +146,10 @@ private final class LiveGoogleFirestoreTransactionOperations(
 
   override def create(path: FirestoreDocumentPath, data: Map[String, String]): Unit =
     val document = firestore.document(path.asString)
+    // This read puts the document in the transaction's read set: a concurrent creation
+    // makes the commit return ABORTED, so the SDK retries the callback and sees the
+    // document as existing at this read. Conflicts therefore always surface here (where
+    // callers map AlreadyExists to a domain error) and never at commitCreates().
     val snapshot = transaction.get(document).get()
 
     if snapshot.exists() then
