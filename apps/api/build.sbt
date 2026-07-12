@@ -5,6 +5,7 @@ val scala3      = "3.8.4"
 val zioVersion  = "2.1.26"
 val ironVersion = "3.3.1"
 val zioJsonVersion = "0.9.0"
+val tapirVersion = "1.13.27"
 val googleCloudFirestoreVersion = "3.43.1"
 
 lazy val FirestoreIntegration = config("firestoreIntegration") extend Test
@@ -71,6 +72,7 @@ lazy val infrastructure = project
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio"          % zioVersion,
       "dev.zio" %% "zio-json"     % zioJsonVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % tapirVersion,
       "com.google.cloud" % "google-cloud-firestore" % googleCloudFirestoreVersion,
       "dev.zio" %% "zio-test"     % zioVersion % Test,
       "dev.zio" %% "zio-test-sbt" % zioVersion % Test,
