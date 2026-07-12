@@ -29,7 +29,7 @@ ThisBuild / coverageFailOnMinimum := true
 
 lazy val root = project
   .in(file("."))
-  .aggregate(domain, application, infrastructure)
+  .aggregate(domain, application, infrastructure, bootstrap)
   .settings(
     name := "morecat-api",
     publish / skip := true,
@@ -82,4 +82,12 @@ lazy val infrastructure = project
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     inConfig(FirestoreIntegration)(Defaults.testSettings),
+  )
+
+lazy val bootstrap = project
+  .in(file("bootstrap"))
+  .dependsOn(infrastructure)
+  .settings(
+    name := "morecat-bootstrap",
+    libraryDependencies += "dev.zio" %% "zio" % zioVersion,
   )

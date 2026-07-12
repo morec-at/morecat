@@ -8,17 +8,19 @@ final class ApiHttpApp(createArticleEndpoint: CreateArticleEndpoint):
   private val endpointRoutes: Routes[Any, Response] =
     ZioHttpInterpreter().toHttp(createArticleEndpoint.endpoint)
 
-  val handler: Handler[Scope, Nothing, Request, Response] =
+  val handler: Handler[Any, Nothing, Request, Response] =
     Handler.fromFunctionZIO[Request](handle)
 
-  def handle(request: Request): ZIO[Scope, Nothing, Response] =
-    Handler
-      .asChunkBounded(request, ApiHttpApp.MaxRequestBodyBytes)
-      .runZIO(())
-      .foldZIO(
-        _ => ZIO.succeed(Response.status(Status.RequestEntityTooLarge)),
-        body => endpointRoutes.runZIO(request.withBody(Body.fromChunk(body))),
-      )
+  def handle(request: Request): UIO[Response] =
+    ZIO.scoped {
+      Handler
+        .asChunkBounded(request, ApiHttpApp.MaxRequestBodyBytes)
+        .runZIO(())
+        .foldZIO(
+          _ => ZIO.succeed(Response.status(Status.RequestEntityTooLarge)),
+          body => endpointRoutes.runZIO(request.withBody(Body.fromChunk(body))),
+        )
+    }
 
 object ApiHttpApp:
   val MaxRequestBodyBytes: Int = 512 * 1024
