@@ -4,7 +4,12 @@ import com.google.cloud.firestore.FirestoreOptions
 import morecat.application.*
 import morecat.infrastructure.auth.BearerTokenAuthenticator
 import morecat.infrastructure.firestore.*
-import morecat.infrastructure.http.{ApiHttpApp, CommandSecurity, CreateArticleEndpoint}
+import morecat.infrastructure.http.{
+  ApiHttpApp,
+  CommandSecurity,
+  CreateArticleEndpoint,
+  PublishArticleEndpoint
+}
 import morecat.infrastructure.id.UuidV7ArticleIdGenerator
 import zio.*
 import zio.http.Server
@@ -50,7 +55,8 @@ object Main extends ZIOAppDefault:
           UuidV7ArticleIdGenerator(),
           commandService.createDraft,
         )
-        app = ApiHttpApp(endpoint)
+        publishEndpoint = PublishArticleEndpoint(security, commandService.publish)
+        app = ApiHttpApp(endpoint, publishEndpoint)
         _ <- Server.serve(app.handler.toRoutes).provide(Server.defaultWithPort(port))
       yield ()
     }

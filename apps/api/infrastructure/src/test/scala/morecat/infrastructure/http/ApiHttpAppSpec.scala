@@ -20,6 +20,11 @@ object ApiHttpAppSpec extends ZIOSpecDefault:
     BearerTokenAuthenticator.make("expected-token").toOption.get
   )
 
+  private val publishEndpoint = PublishArticleEndpoint(
+    security,
+    _ => ZIO.succeed(PublishResult.Published),
+  )
+
   private def request(body: Body): Request =
     Request
       .post(URL.decode("http://localhost/articles").toOption.get, body)
@@ -37,7 +42,7 @@ object ApiHttpAppSpec extends ZIOSpecDefault:
           idGenerator,
           _ => called.set(true),
         )
-        app = ApiHttpApp(endpoint)
+        app = ApiHttpApp(endpoint, publishEndpoint)
         response <- app.handler.runZIO(request(Body.fromString(json)))
         wasCalled <- called.get
       yield assertTrue(response.status == Status.Created, wasCalled)
@@ -53,7 +58,7 @@ object ApiHttpAppSpec extends ZIOSpecDefault:
           idGenerator,
           _ => called.set(true),
         )
-        app = ApiHttpApp(endpoint)
+        app = ApiHttpApp(endpoint, publishEndpoint)
         response <- app.handle(
           request(Body.fromStreamChunked(ZStream.fromIterable(oversizedJson.getBytes)))
         )
