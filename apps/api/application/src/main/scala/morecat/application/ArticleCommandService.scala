@@ -20,6 +20,7 @@ enum CommandError:
   case SlugConflict
   case VersionConflict
   case ArticleNotFound
+  case StoreFailure
   case StoreUnavailable
 
 enum PublishResult:
@@ -91,6 +92,9 @@ final class ArticleCommandService(store: ArticleEventStore, clock: ServerClock):
 
   private def toCommandError(error: EventStoreError): CommandError =
     error match
-      case EventStoreError.SlugAlreadyReserved => CommandError.SlugConflict
-      case EventStoreError.VersionConflict     => CommandError.VersionConflict
-      case EventStoreError.Unavailable(_)      => CommandError.StoreUnavailable
+      case EventStoreError.SlugAlreadyReserved   => CommandError.SlugConflict
+      case EventStoreError.VersionConflict       => CommandError.VersionConflict
+      case EventStoreError.FailedPrecondition(_) => CommandError.StoreFailure
+      case EventStoreError.PermissionDenied(_)   => CommandError.StoreFailure
+      case EventStoreError.InvalidArgument(_)    => CommandError.StoreFailure
+      case EventStoreError.Unavailable(_)        => CommandError.StoreUnavailable

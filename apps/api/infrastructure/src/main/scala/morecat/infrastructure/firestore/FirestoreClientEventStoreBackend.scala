@@ -15,7 +15,7 @@ final class FirestoreClientEventStoreBackend(client: FirestoreDocumentClient)
   def loadEvents(articleId: ArticleId): IO[EventStoreError, Chunk[StoredFirestoreArticleEvent]] =
     client
       .listDocuments(FirestoreDocumentModel.articleEventsCollectionPath(articleId))
-      .mapError(toEventStoreError)
+      .mapError(FirestoreEventStoreErrorMapper.read)
       .flatMap { documents =>
         ZIO
           .foreach(documents) { document =>
@@ -38,13 +38,6 @@ final class FirestoreClientEventStoreBackend(client: FirestoreDocumentClient)
       .attempt(value.toLong)
       .mapError(_ => EventStoreError.Unavailable(s"invalid event seq document id: $value"))
 
-  private def toEventStoreError(error: FirestoreClientError): EventStoreError =
-    error match
-      case FirestoreClientError.AlreadyExists =>
-        EventStoreError.Unavailable("unexpected Firestore create conflict")
-      case FirestoreClientError.Unavailable(message) =>
-        EventStoreError.Unavailable(message)
-
 private final class FirestoreClientEventStoreTransaction(tx: FirestoreDocumentTransaction)
     extends FirestoreEventStoreTransaction:
 
@@ -53,7 +46,4 @@ private final class FirestoreClientEventStoreTransaction(tx: FirestoreDocumentTr
     data: Map[String, String],
     alreadyExistsError: EventStoreError,
   ): IO[EventStoreError, Unit] =
-    tx.create(path, data).mapError {
-      case FirestoreClientError.AlreadyExists        => alreadyExistsError
-      case FirestoreClientError.Unavailable(message) => EventStoreError.Unavailable(message)
-    }
+    tx.create(path, data).mapError(FirestoreEventStoreErrorMapper.create(alreadyExistsError))

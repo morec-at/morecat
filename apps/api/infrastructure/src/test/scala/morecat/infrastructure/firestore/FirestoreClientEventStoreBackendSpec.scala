@@ -43,6 +43,46 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
           .exit
       )(Assertion.fails(Assertion.equalTo(EventStoreError.SlugAlreadyReserved)))
     },
+    test("createDocument maps transaction conflicts to VersionConflict") {
+      val client = RecordingFirestoreDocumentClient(createResult =
+        ZIO.fail(FirestoreClientError.Conflict("transaction contention"))
+      )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(
+        backend
+          .runTransaction(
+            _.createDocument(
+              FirestoreDocumentPath("slugs", "hello-world"),
+              Map("articleId" -> articleId.asString),
+              EventStoreError.SlugAlreadyReserved,
+            )
+          )
+          .exit
+      )(Assertion.fails(Assertion.equalTo(EventStoreError.VersionConflict)))
+    },
+    test("createDocument preserves non-retryable failed preconditions") {
+      val client = RecordingFirestoreDocumentClient(createResult =
+        ZIO.fail(FirestoreClientError.FailedPrecondition("precondition failed"))
+      )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(
+        backend
+          .runTransaction(
+            _.createDocument(
+              FirestoreDocumentPath("slugs", "hello-world"),
+              Map("articleId" -> articleId.asString),
+              EventStoreError.SlugAlreadyReserved,
+            )
+          )
+          .exit
+      )(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.FailedPrecondition("precondition failed"))
+        )
+      )
+    },
     test("createDocument maps client unavailability to EventStoreError.Unavailable") {
       val client =
         RecordingFirestoreDocumentClient(createResult =
@@ -61,6 +101,52 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
           )
           .exit
       )(Assertion.fails(Assertion.equalTo(EventStoreError.Unavailable("down"))))
+    },
+    test("createDocument preserves non-retryable permission failures") {
+      val client =
+        RecordingFirestoreDocumentClient(createResult =
+          ZIO.fail(FirestoreClientError.PermissionDenied("iam denied"))
+        )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(
+        backend
+          .runTransaction(
+            _.createDocument(
+              FirestoreDocumentPath("slugs", "hello-world"),
+              Map("articleId" -> articleId.asString),
+              EventStoreError.SlugAlreadyReserved,
+            )
+          )
+          .exit
+      )(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.PermissionDenied("iam denied"))
+        )
+      )
+    },
+    test("createDocument preserves non-retryable invalid arguments") {
+      val client =
+        RecordingFirestoreDocumentClient(createResult =
+          ZIO.fail(FirestoreClientError.InvalidArgument("bad request"))
+        )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(
+        backend
+          .runTransaction(
+            _.createDocument(
+              FirestoreDocumentPath("slugs", "hello-world"),
+              Map("articleId" -> articleId.asString),
+              EventStoreError.SlugAlreadyReserved,
+            )
+          )
+          .exit
+      )(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.InvalidArgument("bad request"))
+        )
+      )
     },
     test("loadEvents reads the article events collection and returns events sorted by seq") {
       val client = RecordingFirestoreDocumentClient(
@@ -123,6 +209,44 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
         Assertion.fails(Assertion.equalTo(EventStoreError.Unavailable("down")))
       )
     },
+    test("loadEvents preserves non-retryable permission failures") {
+      val client =
+        RecordingFirestoreDocumentClient(listResult =
+          ZIO.fail(FirestoreClientError.PermissionDenied("iam denied"))
+        )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(backend.loadEvents(articleId).exit)(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.PermissionDenied("iam denied"))
+        )
+      )
+    },
+    test("loadEvents preserves non-retryable invalid arguments") {
+      val client =
+        RecordingFirestoreDocumentClient(listResult =
+          ZIO.fail(FirestoreClientError.InvalidArgument("bad request"))
+        )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(backend.loadEvents(articleId).exit)(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.InvalidArgument("bad request"))
+        )
+      )
+    },
+    test("loadEvents preserves non-retryable failed preconditions") {
+      val client = RecordingFirestoreDocumentClient(listResult =
+        ZIO.fail(FirestoreClientError.FailedPrecondition("precondition failed"))
+      )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(backend.loadEvents(articleId).exit)(
+        Assertion.fails(
+          Assertion.equalTo(EventStoreError.FailedPrecondition("precondition failed"))
+        )
+      )
+    },
     test("loadEvents maps unexpected AlreadyExists to Unavailable") {
       val client =
         RecordingFirestoreDocumentClient(listResult = ZIO.fail(FirestoreClientError.AlreadyExists))
@@ -131,6 +255,23 @@ object FirestoreClientEventStoreBackendSpec extends ZIOSpecDefault:
       assertZIO(backend.loadEvents(articleId).exit)(
         Assertion.fails(
           Assertion.equalTo(EventStoreError.Unavailable("unexpected Firestore create conflict"))
+        )
+      )
+    },
+    test("loadEvents maps unexpected transaction conflicts to Unavailable") {
+      val client =
+        RecordingFirestoreDocumentClient(listResult =
+          ZIO.fail(FirestoreClientError.Conflict("transaction contention"))
+        )
+      val backend = FirestoreClientEventStoreBackend(client)
+
+      assertZIO(backend.loadEvents(articleId).exit)(
+        Assertion.fails(
+          Assertion.equalTo(
+            EventStoreError.Unavailable(
+              "unexpected Firestore transaction conflict: transaction contention"
+            )
+          )
         )
       )
     },
