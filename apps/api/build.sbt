@@ -74,6 +74,7 @@ lazy val infrastructure = project
       "dev.zio" %% "zio"          % zioVersion,
       "dev.zio" %% "zio-json"     % zioJsonVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-json-zio" % tapirVersion,
       "com.fasterxml.uuid" % "java-uuid-generator" % javaUuidGeneratorVersion,
       "com.google.cloud" % "google-cloud-firestore" % googleCloudFirestoreVersion,
       "dev.zio" %% "zio-test"     % zioVersion % Test,
