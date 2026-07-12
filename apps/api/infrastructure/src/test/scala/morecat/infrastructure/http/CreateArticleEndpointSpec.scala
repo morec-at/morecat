@@ -117,6 +117,24 @@ object CreateArticleEndpointSpec extends ZIOSpecDefault:
         wasCalled <- called.get
       yield assertTrue(response.status == Status.BadRequest, !wasCalled)
     },
+    test("rejects duplicate JSON fields before creating a draft") {
+      for
+        called <- Ref.make(false)
+        endpoint = CreateArticleEndpoint(
+          security,
+          idGenerator,
+          _ => called.set(true),
+        )
+        routes: Routes[Any, Response] = ZioHttpInterpreter().toHttp(endpoint.endpoint)
+        response <- routes.runZIO(
+          request(
+            """{"slug":"first","slug":"second","title":"Hello","body":"body"}""",
+            true,
+          )
+        )
+        wasCalled <- called.get
+      yield assertTrue(response.status == Status.BadRequest, !wasCalled)
+    },
     test("rejects a non-object JSON request before creating a draft") {
       for
         called <- Ref.make(false)
