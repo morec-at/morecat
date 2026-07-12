@@ -18,7 +18,9 @@ object CreateArticleRequest:
   private val ExpectedFields = Set("slug", "title", "body")
 
   given JsonDecoder[CreateArticleRequest] = JsonDecoder[Json].mapOrFail {
-    case obj: Json.Obj if obj.fields.map(_._1).toSet == ExpectedFields =>
+    case obj: Json.Obj
+        if obj.fields.size == ExpectedFields.size &&
+          obj.fields.map(_._1).toSet == ExpectedFields =>
       obj.toJson
         .fromJson[Wire]
         .map(wire => CreateArticleRequest(wire.slug, wire.title, wire.body))

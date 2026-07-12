@@ -110,7 +110,7 @@ object CreateArticleEndpointSpec extends ZIOSpecDefault:
         routes: Routes[Any, Response] = ZioHttpInterpreter().toHttp(endpoint.endpoint)
         response <- routes.runZIO(
           request(
-            """{"slug":"hello-world","title":"Hello","body":"body","admin":true}""",
+            """{"slug":"hello-world","title":"Hello","admin":true}""",
             true,
           )
         )
