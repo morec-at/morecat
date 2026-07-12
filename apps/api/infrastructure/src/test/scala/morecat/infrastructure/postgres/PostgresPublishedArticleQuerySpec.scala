@@ -67,4 +67,24 @@ object PostgresPublishedArticleQuerySpec extends ZIOSpecDefault:
         Assertion.fails(Assertion.equalTo(QueryError.Unavailable(failure.toString)))
       )
     },
+    test("maps invalid read-model values to query unavailability") {
+      val rows = new PublishedArticleRows:
+        override def findBySlug(slug: String): Task[Option[PublishedArticleRow]] =
+          ZIO.succeed(
+            Some(
+              PublishedArticleRow(
+                articleId = "018f4edc-1f5a-7c4b-aef9-000000000001",
+                slug = "INVALID SLUG",
+                title = "Hello",
+                body = "body",
+                publishedAt = 999L,
+              )
+            )
+          )
+      val query = PostgresPublishedArticleQuery.fromRows(rows)
+
+      assertZIO(query.findBySlug(Slug.applyUnsafe("hello-world")).exit)(
+        Assertion.fails(Assertion.isSubtype[QueryError.Unavailable](Assertion.anything))
+      )
+    },
   )

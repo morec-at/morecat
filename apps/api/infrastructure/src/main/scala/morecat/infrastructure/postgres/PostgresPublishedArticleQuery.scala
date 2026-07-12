@@ -24,7 +24,7 @@ final class PostgresPublishedArticleQuery private (
   override def findBySlug(slug: Slug): IO[QueryError, Option[PublishedArticle]] =
     rows
       .findBySlug(slug)
-      .map(_.map(toPublishedArticle))
+      .flatMap(row => ZIO.attempt(row.map(toPublishedArticle)))
       .mapError(error => QueryError.Unavailable(errorMessage(error)))
 
   private def toPublishedArticle(row: PublishedArticleRow): PublishedArticle =
