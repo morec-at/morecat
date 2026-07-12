@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit
 // $COVERAGE-OFF$
 object Main extends ZIOAppDefault:
   private val BearerTokenEnv = "MORECAT_BEARER_TOKEN"
+  private val PortEnv = "PORT"
 
   override def run: ZIO[Any, Throwable, Unit] =
     ZIO.scoped {
@@ -25,6 +26,13 @@ object Main extends ZIOAppDefault:
         authenticator <- ZIO
           .fromEither(BearerTokenAuthenticator.make(token))
           .mapError(error => IllegalArgumentException(error.toString))
+        port <- System.env(PortEnv).flatMap {
+          case None        => ZIO.succeed(8080)
+          case Some(value) =>
+            ZIO
+              .fromOption(value.toIntOption.filter(port => port > 0 && port <= 65535))
+              .orElseFail(IllegalArgumentException(s"$PortEnv must be a valid TCP port"))
+        }
         firestore <- ZIO.acquireRelease(
           ZIO.attempt(FirestoreOptions.getDefaultInstance.getService)
         )(service => ZIO.attempt(service.close()).orDie)
@@ -43,7 +51,7 @@ object Main extends ZIOAppDefault:
           commandService.createDraft,
         )
         app = ApiHttpApp(endpoint)
-        _ <- Server.serve(app.handler.toRoutes).provide(Server.default)
+        _ <- Server.serve(app.handler.toRoutes).provide(Server.defaultWithPort(port))
       yield ()
     }
 // $COVERAGE-ON$
