@@ -23,6 +23,9 @@ trait ArticleEventStore:
 trait ServerClock:
   def nowMillis: UIO[Long]
 
+trait ArticleIdGenerator:
+  def next: UIO[ArticleId]
+
 final case class PublishedArticle(
   id: ArticleId,
   slug: Slug,
