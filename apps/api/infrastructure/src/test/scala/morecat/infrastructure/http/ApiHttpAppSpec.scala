@@ -38,7 +38,7 @@ object ApiHttpAppSpec extends ZIOSpecDefault:
           _ => called.set(true),
         )
         app = ApiHttpApp(endpoint)
-        response <- app.handle(request(Body.fromString(json)))
+        response <- app.handler.runZIO(request(Body.fromString(json)))
         wasCalled <- called.get
       yield assertTrue(response.status == Status.Created, wasCalled)
     },
