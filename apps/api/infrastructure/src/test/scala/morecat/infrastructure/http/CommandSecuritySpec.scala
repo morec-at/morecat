@@ -5,7 +5,7 @@ import sttp.model.StatusCode
 import sttp.tapir.server.ziohttp.ZioHttpInterpreter
 import sttp.tapir.ztapir.*
 import zio.*
-import zio.http.{Request, Response, Routes, Status, URL}
+import zio.http.{Header, Request, Response, Routes, Status, URL}
 import zio.test.*
 
 object CommandSecuritySpec extends ZIOSpecDefault:
@@ -38,6 +38,23 @@ object CommandSecuritySpec extends ZIOSpecDefault:
         .serverLogic[Any](logic)
       val routes: Routes[Any, Response] = ZioHttpInterpreter().toHttp(probe)
       val request = Request.get(URL.decode("http://localhost/probe").toOption.get)
+
+      assertZIO(routes.runZIO(request).map(_.status))(
+        Assertion.equalTo(Status.Unauthorized)
+      )
+    },
+    test("rejects an invalid bearer token through the HTTP route") {
+      val security = CommandSecurity(authenticator)
+      val logic: Unit => Unit => UIO[StatusCode] =
+        _ => _ => ZIO.succeed(StatusCode.NoContent)
+      val probe = security.endpoint.get
+        .in("probe")
+        .out(statusCode)
+        .serverLogic[Any](logic)
+      val routes: Routes[Any, Response] = ZioHttpInterpreter().toHttp(probe)
+      val request = Request
+        .get(URL.decode("http://localhost/probe").toOption.get)
+        .addHeader(Header.Authorization.Bearer("presented-secret"))
 
       assertZIO(routes.runZIO(request).map(_.status))(
         Assertion.equalTo(Status.Unauthorized)
