@@ -4,9 +4,14 @@ import sttp.tapir.server.ziohttp.ZioHttpInterpreter
 import zio.*
 import zio.http.*
 
-final class ApiHttpApp(createArticleEndpoint: CreateArticleEndpoint):
+final class ApiHttpApp(
+  createArticleEndpoint: CreateArticleEndpoint,
+  publishArticleEndpoint: PublishArticleEndpoint,
+):
   private val endpointRoutes: Routes[Any, Response] =
-    ZioHttpInterpreter().toHttp(createArticleEndpoint.endpoint)
+    ZioHttpInterpreter().toHttp(
+      List(createArticleEndpoint.endpoint, publishArticleEndpoint.endpoint)
+    )
 
   val handler: Handler[Any, Nothing, Request, Response] =
     Handler.fromFunctionZIO[Request](handle)
