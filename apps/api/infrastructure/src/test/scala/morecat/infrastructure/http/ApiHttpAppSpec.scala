@@ -1,7 +1,7 @@
 package morecat.infrastructure.http
 
 import morecat.application.*
-import morecat.domain.ArticleId
+import morecat.domain.*
 import morecat.infrastructure.auth.BearerTokenAuthenticator
 import zio.*
 import zio.http.*
@@ -25,6 +25,9 @@ object ApiHttpAppSpec extends ZIOSpecDefault:
     _ => ZIO.succeed(PublishResult.Published),
   )
 
+  private val getEndpoint =
+    GetPublishedArticleEndpoint(_ => ZIO.fail(PublishedArticleError.NotFound))
+
   private def request(body: Body): Request =
     Request
       .post(URL.decode("http://localhost/articles").toOption.get, body)
@@ -42,7 +45,7 @@ object ApiHttpAppSpec extends ZIOSpecDefault:
           idGenerator,
           _ => called.set(true),
         )
-        app = ApiHttpApp(endpoint, publishEndpoint)
+        app = ApiHttpApp(endpoint, publishEndpoint, getEndpoint)
         response <- app.handler.runZIO(request(Body.fromString(json)))
         wasCalled <- called.get
       yield assertTrue(response.status == Status.Created, wasCalled)
@@ -58,11 +61,28 @@ object ApiHttpAppSpec extends ZIOSpecDefault:
           idGenerator,
           _ => called.set(true),
         )
-        app = ApiHttpApp(endpoint, publishEndpoint)
+        app = ApiHttpApp(endpoint, publishEndpoint, getEndpoint)
         response <- app.handle(
           request(Body.fromStreamChunked(ZStream.fromIterable(oversizedJson.getBytes)))
         )
         wasCalled <- called.get
       yield assertTrue(response.status == Status.RequestEntityTooLarge, !wasCalled)
-    }
+    },
+    test("routes the public GET request to the published article endpoint") {
+      val article = PublishedArticle(
+        id = generatedId,
+        slug = Slug.applyUnsafe("hello-world"),
+        title = Title.applyUnsafe("Hello"),
+        body = "body",
+        publishedAt = 999L,
+      )
+      val createEndpoint = CreateArticleEndpoint(security, idGenerator, _ => ZIO.unit)
+      val publicEndpoint = GetPublishedArticleEndpoint(_ => ZIO.succeed(article))
+      val app = ApiHttpApp(createEndpoint, publishEndpoint, publicEndpoint)
+      val getRequest = Request.get(
+        URL.decode("http://localhost/articles/hello-world").toOption.get
+      )
+
+      assertZIO(app.handler.runZIO(getRequest).map(_.status))(Assertion.equalTo(Status.Ok))
+    },
   )

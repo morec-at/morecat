@@ -1,6 +1,8 @@
 package morecat.bootstrap
 
 import com.google.cloud.firestore.FirestoreOptions
+import com.augustnagro.magnum.magzio.TransactorZIO
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import morecat.application.*
 import morecat.infrastructure.auth.BearerTokenAuthenticator
 import morecat.infrastructure.firestore.*
@@ -8,9 +10,11 @@ import morecat.infrastructure.http.{
   ApiHttpApp,
   CommandSecurity,
   CreateArticleEndpoint,
+  GetPublishedArticleEndpoint,
   PublishArticleEndpoint
 }
 import morecat.infrastructure.id.UuidV7ArticleIdGenerator
+import morecat.infrastructure.postgres.PostgresPublishedArticleQuery
 import zio.*
 import zio.http.Server
 
@@ -21,6 +25,9 @@ import java.util.concurrent.TimeUnit
 object Main extends ZIOAppDefault:
   private val BearerTokenEnv = "MORECAT_BEARER_TOKEN"
   private val PortEnv = "PORT"
+  private val DatabaseUrlEnv = "DATABASE_URL"
+  private val DatabaseUserEnv = "DATABASE_USER"
+  private val DatabasePasswordEnv = "DATABASE_PASSWORD"
 
   override def run: ZIO[Any, Throwable, Unit] =
     ZIO.scoped {
@@ -41,6 +48,23 @@ object Main extends ZIOAppDefault:
         firestore <- ZIO.acquireRelease(
           ZIO.attempt(FirestoreOptions.getDefaultInstance.getService)
         )(service => ZIO.attempt(service.close()).orDie)
+        databaseUrl <- requiredEnv(DatabaseUrlEnv)
+        databaseUser <- requiredEnv(DatabaseUserEnv)
+        databasePassword <- requiredEnv(DatabasePasswordEnv)
+        dataSource <- ZIO.acquireRelease(
+          ZIO.attempt {
+            val config = HikariConfig()
+            config.setJdbcUrl(databaseUrl)
+            config.setUsername(databaseUser)
+            config.setPassword(databasePassword)
+            HikariDataSource(config)
+          }
+        )(dataSource => ZIO.attempt(dataSource.close()).orDie)
+        transactor <- ZIO
+          .service[TransactorZIO]
+          .provideLayer(
+            ZLayer.succeed[javax.sql.DataSource](dataSource) >>> TransactorZIO.layer
+          )
         documentClient = GoogleFirestoreDocumentClient(
           GoogleFirestoreOperations.fromFirestore(firestore)
         )
@@ -56,8 +80,15 @@ object Main extends ZIOAppDefault:
           commandService.createDraft,
         )
         publishEndpoint = PublishArticleEndpoint(security, commandService.publish)
-        app = ApiHttpApp(endpoint, publishEndpoint)
+        publishedArticleService = PublishedArticleService(
+          PostgresPublishedArticleQuery(transactor)
+        )
+        getEndpoint = GetPublishedArticleEndpoint(publishedArticleService.getBySlug)
+        app = ApiHttpApp(endpoint, publishEndpoint, getEndpoint)
         _ <- Server.serve(app.handler.toRoutes).provide(Server.defaultWithPort(port))
       yield ()
     }
+
+  private def requiredEnv(name: String): IO[Throwable, String] =
+    System.env(name).someOrFail(IllegalStateException(s"$name is required"))
 // $COVERAGE-ON$

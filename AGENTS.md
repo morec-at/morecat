@@ -17,7 +17,7 @@
 
 ## Build, Test, and Development Commands
 - 開発環境: ルートで `nix develop`（flake で JDK 25 / sbt / Node / Rust を固定。Scala 3.8 系は JDK 17+ 必須なので JDK は nix で揃える）。以降のコマンドは dev shell 内で実行する。
-- API(Scala): sbt ビルドルートは `apps/api`。`cd apps/api` してから `sbt compile` / `sbt test`。集約カバレッジ取得は `sbt clean` 後、Firestore エミュレータ内で `firebase emulators:exec --only firestore --project demo-morecat 'sbt -batch -no-colors coverage domain/test application/test infrastructure/test bootstrap/test "infrastructure / FirestoreIntegration / test" coverageAggregate'`（HTML は `target/scala-*/scoverage-report/`）。純粋ドメインだけは `sbt domain/test`。エミュレータ統合テストだけなら `firebase emulators:exec --only firestore --project demo-morecat 'sbt -batch -no-colors "infrastructure / FirestoreIntegration / test"'`。サーバ起動は `MORECAT_BEARER_TOKEN=... sbt bootstrap/run`。
+- API(Scala): sbt ビルドルートは `apps/api`。`cd apps/api` してから `sbt compile` / `sbt test`。集約カバレッジ取得は `sbt clean` 後、Firestore エミュレータ内で `firebase emulators:exec --only firestore --project demo-morecat 'sbt -batch -no-colors coverage domain/test application/test infrastructure/test bootstrap/test "infrastructure / FirestoreIntegration / test" coverageAggregate'`（HTML は `target/scala-*/scoverage-report/`）。純粋ドメインだけは `sbt domain/test`。エミュレータ統合テストだけなら `firebase emulators:exec --only firestore --project demo-morecat 'sbt -batch -no-colors "infrastructure / FirestoreIntegration / test"'`。サーバ起動の環境変数と手順は `apps/api/bootstrap/README.md` を参照。
 - RMU(Rust): `cd apps/rmu` で `cargo build` / `cargo test`（実装はタスク3以降）。
 - UI: `apps/ui` で `pnpm install`、各 app で `pnpm dev` / `pnpm build` / `pnpm test` / `pnpm lint`。
 - 型生成: API の OpenAPI から `packages/api-client` を再生成（`pnpm gen:api`）。
