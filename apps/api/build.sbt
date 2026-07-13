@@ -93,6 +93,8 @@ lazy val infrastructure = project
       "dev.zio" %% "zio-test-sbt" % zioVersion % Test,
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / unmanagedResourceDirectories +=
+      (LocalRootProject / baseDirectory).value.getParentFile / "fixtures",
     inConfig(FirestoreIntegration)(Defaults.testSettings),
     inConfig(PostgresIntegration)(Defaults.testSettings),
   )

@@ -1,0 +1,31 @@
+{
+  "articleId": "018f4edc-1f5a-7c4b-aef9-000000000001",
+  "events": [
+    {
+      "seq": 1,
+      "event": {
+        "eventType": "ArticleDrafted",
+        "schemaVersion": 1,
+        "slug": "hello-world",
+        "title": "Hello, world",
+        "body": "# Hello\n\nContract fixture."
+      }
+    },
+    {
+      "seq": 2,
+      "event": {
+        "eventType": "ArticlePublished",
+        "schemaVersion": 1,
+        "publishedAt": 1710000000000
+      }
+    }
+  ],
+  "expectedProjection": {
+    "status": "published",
+    "slug": "hello-world",
+    "title": "Hello, world",
+    "body": "# Hello\n\nContract fixture.",
+    "publishedAt": 1710000000000,
+    "lastAppliedSeq": 2
+  }
+}

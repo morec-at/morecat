@@ -1,6 +1,7 @@
 use uuid::Uuid;
 
 pub mod eventarc;
+pub mod projection;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventDocument {
