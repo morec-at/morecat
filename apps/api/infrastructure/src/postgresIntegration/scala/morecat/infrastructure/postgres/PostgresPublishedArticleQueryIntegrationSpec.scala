@@ -17,21 +17,8 @@ object PostgresPublishedArticleQueryIntegrationSpec extends ZIOSpecDefault:
 
   def spec = suite("PostgresPublishedArticleQuery integration")(
     test("returns published rows and hides drafts after applying the migration") {
-      ZIO.acquireRelease(
-        ZIO.attemptBlocking {
-          val postgres = TestPostgres()
-          postgres.start()
-          postgres
-        }
-      )(postgres => ZIO.attemptBlocking(postgres.stop()).orDie).flatMap { postgres =>
+      withMigratedPostgres { postgres =>
         for
-          _ <- ZIO.attemptBlocking(
-            Flyway
-              .configure()
-              .dataSource(postgres.getJdbcUrl, postgres.getUsername, postgres.getPassword)
-              .load()
-              .migrate()
-          )
           _ <- insertArticle(
             postgres,
             articleId = "018f4edc-1f5a-7c4b-aef9-000000000001",
@@ -64,8 +51,79 @@ object PostgresPublishedArticleQueryIntegrationSpec extends ZIOSpecDefault:
           ),
         )
       }
-    }
+    },
+    test("rejects duplicate slugs") {
+      withMigratedPostgres { postgres =>
+        for
+          _ <- insertArticle(
+            postgres,
+            articleId = "018f4edc-1f5a-7c4b-aef9-000000000003",
+            status = "draft",
+            slug = "duplicate-slug",
+            publishedAt = None,
+          )
+          error <- insertArticle(
+            postgres,
+            articleId = "018f4edc-1f5a-7c4b-aef9-000000000004",
+            status = "draft",
+            slug = "duplicate-slug",
+            publishedAt = None,
+          ).flip
+        yield assertTrue(hasSqlState(error, "23505"))
+      }
+    },
+    test("rejects unsupported statuses and inconsistent publication timestamps") {
+      withMigratedPostgres { postgres =>
+        for
+          unsupportedStatus <- insertArticle(
+            postgres,
+            articleId = "018f4edc-1f5a-7c4b-aef9-000000000005",
+            status = "archived",
+            slug = "archived-article",
+            publishedAt = None,
+          ).flip
+          inconsistentTimestamp <- insertArticle(
+            postgres,
+            articleId = "018f4edc-1f5a-7c4b-aef9-000000000006",
+            status = "draft",
+            slug = "published-draft",
+            publishedAt = Some(999L),
+          ).flip
+        yield assertTrue(
+          hasSqlState(unsupportedStatus, "23514"),
+          hasSqlState(inconsistentTimestamp, "23514"),
+        )
+      }
+    },
   )
+
+  private def withMigratedPostgres[E, A](
+    test: TestPostgres => ZIO[Any, E, A]
+  ): ZIO[Any, Throwable | E, A] =
+    ZIO.scoped {
+      ZIO.acquireRelease(
+        ZIO.attemptBlocking {
+          val postgres = TestPostgres()
+          postgres.start()
+          postgres
+        }
+      )(postgres => ZIO.attemptBlocking(postgres.stop()).orDie).flatMap { postgres =>
+        ZIO
+          .attemptBlocking(
+            Flyway
+              .configure()
+              .dataSource(postgres.getJdbcUrl, postgres.getUsername, postgres.getPassword)
+              .load()
+              .migrate()
+          )
+          .zipRight(test(postgres))
+      }
+    }
+
+  private def hasSqlState(error: Throwable, expected: String): Boolean =
+    error match
+      case sqlError: java.sql.SQLException => sqlError.getSQLState == expected
+      case _                               => false
 
   private def insertArticle(
     postgres: TestPostgres,
