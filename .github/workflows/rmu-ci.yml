@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   test:
-    name: rmu (Rust) format, lint & test
+    name: rmu (Rust) format, lint, test & coverage
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -52,5 +52,5 @@ jobs:
       - name: Clippy
         run: nix develop .#rust --command cargo clippy --manifest-path apps/rmu/Cargo.toml --locked --all-targets --all-features -- -D warnings
 
-      - name: Test
-        run: nix develop .#rust --command cargo test --manifest-path apps/rmu/Cargo.toml --locked
+      - name: Test and coverage
+        run: nix develop .#rust --command cargo llvm-cov --manifest-path apps/rmu/Cargo.toml --locked --all-features --fail-under-lines 100 --fail-under-regions 100

@@ -123,12 +123,12 @@ fn decode_event(headers: &HeaderMap, body: &[u8]) -> Result<AcceptedEvent, Strin
         .map(|document| document.name)
         .filter(|name| !name.is_empty())
         .ok_or_else(|| "missing Firestore document value".to_owned())?;
-    let document = parse_document_name(&name)
-        .map_err(|error| format!("invalid Firestore document name: {error:?}"))?;
     let database_resource = name
         .split_once("/documents/")
         .map(|(database, _)| database)
         .ok_or_else(|| "invalid Firestore document name".to_owned())?;
+    let document = parse_document_name(&name)
+        .map_err(|error| format!("invalid Firestore document name: {error:?}"))?;
     let expected_source = format!("//firestore.googleapis.com/{database_resource}");
     if source != expected_source {
         return Err("CloudEvent source does not match the document database".to_owned());
@@ -274,6 +274,20 @@ mod tests {
                 request.headers_mut().remove("ce-type");
                 request
             },
+            request_without_header("ce-source"),
+            request_without_header("ce-id"),
+            request_without_header(CONTENT_TYPE.as_str()),
+            request_with_header("ce-type", ""),
+            request_with_header("ce-specversion", "0.3"),
+            request_with_header("ce-type", "google.cloud.firestore.document.v1.updated"),
+            request_with_header(CONTENT_TYPE.as_str(), "application/json"),
+            request_with_data(DocumentEventData { value: None }),
+            request_with_data(DocumentEventData {
+                value: Some(FirestoreDocument {
+                    name: String::new(),
+                }),
+            }),
+            valid_request_for_name("not-a-firestore-document-name"),
             Request::post("/")
                 .header("ce-specversion", "1.0")
                 .header("ce-id", "malformed-body")
@@ -295,9 +309,46 @@ mod tests {
             assert!(actions.processed.lock().unwrap().is_empty());
             let dead_letters = actions.dead_letters.lock().unwrap();
             assert_eq!(dead_letters.len(), 1);
-            assert!(!dead_letters[0].body.is_empty());
-            assert!(dead_letters[0].source.is_some());
         }
+    }
+
+    #[tokio::test]
+    async fn preserves_missing_cloudevent_metadata_in_the_dead_letter() {
+        let actions = Arc::new(RecordingActions::default());
+        let request = Request::post("/")
+            .body(Body::from("invalid event"))
+            .unwrap();
+
+        let response = router(actions.clone()).oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        let dead_letters = actions.dead_letters.lock().unwrap();
+        assert_eq!(dead_letters.len(), 1);
+        assert_eq!(dead_letters[0].event_id, None);
+        assert_eq!(dead_letters[0].event_type, None);
+        assert_eq!(dead_letters[0].source, None);
+    }
+
+    #[tokio::test]
+    async fn preserves_invalid_cloudevent_metadata_as_missing_in_the_dead_letter() {
+        let actions = Arc::new(RecordingActions::default());
+        let mut request = valid_request();
+        request.headers_mut().insert(
+            "ce-id",
+            axum::http::HeaderValue::from_bytes(&[0xff]).expect("valid opaque header value"),
+        );
+        request.headers_mut().insert(
+            "ce-source",
+            axum::http::HeaderValue::from_bytes(&[0xff]).expect("valid opaque header value"),
+        );
+
+        let response = router(actions.clone()).oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        let dead_letters = actions.dead_letters.lock().unwrap();
+        assert_eq!(dead_letters.len(), 1);
+        assert_eq!(dead_letters[0].event_id, None);
+        assert_eq!(dead_letters[0].source, None);
     }
 
     #[tokio::test]
@@ -373,12 +424,14 @@ mod tests {
     }
 
     fn valid_request_for_name(name: &str) -> Request<Body> {
-        let data = DocumentEventData {
+        request_with_data(DocumentEventData {
             value: Some(FirestoreDocument {
                 name: name.to_owned(),
             }),
-        };
+        })
+    }
 
+    fn request_with_data(data: DocumentEventData) -> Request<Body> {
         Request::post("/")
             .header("ce-specversion", "1.0")
             .header("ce-id", "event-1")
@@ -390,5 +443,21 @@ mod tests {
             .header(CONTENT_TYPE, "application/protobuf")
             .body(Body::from(data.encode_to_vec()))
             .unwrap()
+    }
+
+    fn request_with_header(name: &str, value: &str) -> Request<Body> {
+        let mut request = valid_request();
+        request.headers_mut().insert(
+            name.parse::<axum::http::HeaderName>()
+                .expect("valid header name"),
+            value.parse().expect("valid header value"),
+        );
+        request
+    }
+
+    fn request_without_header(name: &str) -> Request<Body> {
+        let mut request = valid_request();
+        request.headers_mut().remove(name);
+        request
     }
 }

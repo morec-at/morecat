@@ -99,6 +99,16 @@ mod tests {
                  018f4edc-1f5a-7c4b-aef9-000000000001/events/1/extra",
                 InvalidDocumentName::WrongPath,
             ),
+            (
+                "projects//databases/(default)/documents/articles/\
+                 018f4edc-1f5a-7c4b-aef9-000000000001/events/1",
+                InvalidDocumentName::WrongPath,
+            ),
+            (
+                "projects/p/databases//documents/articles/\
+                 018f4edc-1f5a-7c4b-aef9-000000000001/events/1",
+                InvalidDocumentName::WrongPath,
+            ),
         ];
 
         for (name, expected) in cases {
