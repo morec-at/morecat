@@ -11,8 +11,11 @@ val googleCloudFirestoreVersion = "3.43.1"
 val magnumVersion = "2.0.0-M3"
 val postgresVersion = "42.7.7"
 val hikariVersion = "6.3.3"
+val flywayVersion = "12.10.0"
+val testcontainersVersion = "1.21.4"
 
 lazy val FirestoreIntegration = config("firestoreIntegration") extend Test
+lazy val PostgresIntegration = config("postgresIntegration") extend Test
 
 ThisBuild / scalaVersion := scala3
 ThisBuild / organization := "morecat"
@@ -70,7 +73,7 @@ lazy val application = project
 lazy val infrastructure = project
   .in(file("infrastructure"))
   .dependsOn(application)
-  .configs(FirestoreIntegration)
+  .configs(FirestoreIntegration, PostgresIntegration)
   .settings(
     name := "morecat-infrastructure",
     libraryDependencies ++= Seq(
@@ -83,11 +86,15 @@ lazy val infrastructure = project
       "com.augustnagro" %% "magnumzio" % magnumVersion,
       "org.postgresql" % "postgresql" % postgresVersion,
       "com.zaxxer" % "HikariCP" % hikariVersion,
+      "org.flywaydb" % "flyway-core" % flywayVersion % PostgresIntegration,
+      "org.flywaydb" % "flyway-database-postgresql" % flywayVersion % PostgresIntegration,
+      "org.testcontainers" % "postgresql" % testcontainersVersion % PostgresIntegration,
       "dev.zio" %% "zio-test"     % zioVersion % Test,
       "dev.zio" %% "zio-test-sbt" % zioVersion % Test,
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     inConfig(FirestoreIntegration)(Defaults.testSettings),
+    inConfig(PostgresIntegration)(Defaults.testSettings),
   )
 
 lazy val bootstrap = project

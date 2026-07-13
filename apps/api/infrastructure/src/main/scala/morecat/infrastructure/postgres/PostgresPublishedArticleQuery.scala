@@ -40,16 +40,13 @@ final class PostgresPublishedArticleQuery private (
     Option(error.getMessage).getOrElse(error.toString)
 
 object PostgresPublishedArticleQuery:
-  // $COVERAGE-OFF$
   def apply(transactor: TransactorZIO): PostgresPublishedArticleQuery =
     new PostgresPublishedArticleQuery(LivePublishedArticleRows(transactor))
-  // $COVERAGE-ON$
 
   private[postgres] def fromRows(rows: PublishedArticleRows): PostgresPublishedArticleQuery =
     new PostgresPublishedArticleQuery(rows)
 
-// The SQL is exercised against Postgres once the shared integration-test database is added.
-// $COVERAGE-OFF$
+// Live SQL is exercised by PostgresPublishedArticleQueryIntegrationSpec.
 private final class LivePublishedArticleRows(transactor: TransactorZIO)
     extends PublishedArticleRows:
   override def findBySlug(slug: String): Task[Option[PublishedArticleRow]] =
@@ -60,4 +57,3 @@ private final class LivePublishedArticleRows(transactor: TransactorZIO)
         WHERE slug = $slug AND status = 'published'
         LIMIT 1
       """.query[PublishedArticleRow].run().headOption
-// $COVERAGE-ON$
