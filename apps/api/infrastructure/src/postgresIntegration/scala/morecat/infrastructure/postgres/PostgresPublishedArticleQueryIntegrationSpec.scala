@@ -95,6 +95,19 @@ object PostgresPublishedArticleQueryIntegrationSpec extends ZIOSpecDefault:
         )
       }
     },
+    test("rejects empty titles") {
+      withMigratedPostgres { postgres =>
+        for error <- insertArticle(
+            postgres,
+            articleId = "018f4edc-1f5a-7c4b-aef9-000000000007",
+            status = "draft",
+            slug = "empty-title",
+            publishedAt = None,
+            title = "",
+          ).flip
+        yield assertTrue(hasSqlState(error, "23514"))
+      }
+    },
   )
 
   private def withMigratedPostgres[E, A](
@@ -131,6 +144,7 @@ object PostgresPublishedArticleQueryIntegrationSpec extends ZIOSpecDefault:
     status: String,
     slug: String,
     publishedAt: Option[Long],
+    title: String = "Hello",
   ): Task[Unit] =
     ZIO.attemptBlocking {
       val connection = postgres.createConnection("")
@@ -139,16 +153,17 @@ object PostgresPublishedArticleQueryIntegrationSpec extends ZIOSpecDefault:
           """
             INSERT INTO articles (
               article_id, status, slug, title, body, published_at, last_applied_seq
-            ) VALUES (?, ?, ?, 'Hello', 'body', ?, 1)
+            ) VALUES (?, ?, ?, ?, 'body', ?, 1)
           """
         )
         try
           statement.setString(1, articleId)
           statement.setString(2, status)
           statement.setString(3, slug)
+          statement.setString(4, title)
           publishedAt match
-            case Some(value) => statement.setLong(4, value)
-            case None        => statement.setNull(4, java.sql.Types.BIGINT)
+            case Some(value) => statement.setLong(5, value)
+            case None        => statement.setNull(5, java.sql.Types.BIGINT)
           statement.executeUpdate()
           ()
         finally statement.close()

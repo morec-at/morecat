@@ -7,6 +7,7 @@ CREATE TABLE articles (
   published_at BIGINT,
   last_applied_seq BIGINT NOT NULL,
   CONSTRAINT articles_status_check CHECK (status IN ('draft', 'published')),
+  CONSTRAINT articles_title_check CHECK (title <> ''),
   CONSTRAINT articles_published_at_check CHECK (
     (status = 'draft' AND published_at IS NULL)
     OR (status = 'published' AND published_at IS NOT NULL)
