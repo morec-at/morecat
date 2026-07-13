@@ -53,4 +53,9 @@ jobs:
         run: nix develop .#rust --command cargo clippy --manifest-path apps/rmu/Cargo.toml --locked --all-targets --all-features -- -D warnings
 
       - name: Test and coverage
-        run: nix develop .#rust --command cargo llvm-cov --manifest-path apps/rmu/Cargo.toml --locked --all-features --fail-under-lines 100 --fail-under-regions 100
+        run: >-
+          nix develop .#rust --command firebase emulators:exec
+          --config apps/api/firebase.json
+          --only firestore
+          --project demo-morecat
+          'cargo llvm-cov --manifest-path apps/rmu/Cargo.toml --locked --all-features --fail-under-lines 100 --fail-under-regions 100'
