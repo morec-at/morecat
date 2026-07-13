@@ -1,5 +1,7 @@
 use uuid::Uuid;
 
+pub mod eventarc;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventDocument {
     pub article_id: Uuid,

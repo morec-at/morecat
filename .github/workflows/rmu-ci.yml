@@ -1,0 +1,56 @@
+name: rmu-ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/rmu/**'
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.github/workflows/rmu-ci.yml'
+  pull_request:
+    paths:
+      - 'apps/rmu/**'
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.github/workflows/rmu-ci.yml'
+
+concurrency:
+  group: rmu-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: rmu (Rust) format, lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@fd3eb131b9b46cc1dd978a7c0ba3fce79dd7d3eb # v3.9.1
+
+      - name: Cache Cargo
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/rmu/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('apps/rmu/Cargo.lock', 'flake.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Format check
+        run: nix develop .#rust --command cargo fmt --manifest-path apps/rmu/Cargo.toml --check
+
+      - name: Clippy
+        run: nix develop .#rust --command cargo clippy --manifest-path apps/rmu/Cargo.toml --locked --all-targets --all-features -- -D warnings
+
+      - name: Test
+        run: nix develop .#rust --command cargo test --manifest-path apps/rmu/Cargo.toml --locked

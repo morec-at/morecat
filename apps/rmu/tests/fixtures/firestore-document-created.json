@@ -1,0 +1,10 @@
+{
+  "headers": {
+    "ce-specversion": "1.0",
+    "ce-id": "event-1",
+    "ce-source": "//firestore.googleapis.com/projects/demo-morecat",
+    "ce-type": "google.cloud.firestore.document.v1.created",
+    "content-type": "application/protobuf"
+  },
+  "bodyBase64": "CmwKanByb2plY3RzL2RlbW8tbW9yZWNhdC9kYXRhYmFzZXMvKGRlZmF1bHQpL2RvY3VtZW50cy9hcnRpY2xlcy8wMThmNGVkYy0xZjVhLTdjNGItYWVmOS0wMDAwMDAwMDAwMDEvZXZlbnRzLzE="
+}
