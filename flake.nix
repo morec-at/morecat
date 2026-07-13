@@ -23,6 +23,8 @@
           pkgs.clippy
           pkgs.cargo-llvm-cov
           pkgs.llvmPackages_21.llvm.out
+          pkgs.firebase-tools
+          jdk
         ]; # apps/rmu
         nodePkgs = [ pkgs.nodejs_22 ]; # apps/ui
 
@@ -54,7 +56,10 @@
           # CI/用途別: apps/rmu (Rust) だけ
           rust = pkgs.mkShell {
             packages = rustPkgs;
-            shellHook = rustCoverageHook;
+            shellHook = ''
+              ${javaHook}
+              ${rustCoverageHook}
+            '';
           };
         };
       });
