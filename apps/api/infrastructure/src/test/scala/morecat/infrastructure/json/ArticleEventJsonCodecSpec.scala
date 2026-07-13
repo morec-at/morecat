@@ -1,6 +1,10 @@
 package morecat.infrastructure.json
 
+import java.nio.file.Files
+import java.nio.file.Path
 import morecat.domain.*
+import zio.json.*
+import zio.json.ast.Json
 import zio.test.*
 
 object ArticleEventJsonCodecSpec extends ZIOSpecDefault:
@@ -114,4 +118,23 @@ object ArticleEventJsonCodecSpec extends ZIOSpecDefault:
 
       assertTrue(ArticleEventJsonCodec.decode(json).isLeft)
     },
+    test("matches the shared RMU event wire fixture") {
+      val fixtureJson = Files.readString(Path.of("../fixtures/article-event-stream.json"))
+      val result =
+        fixtureJson
+          .fromJson[ArticleEventStreamFixture]
+          .flatMap: fixture =>
+            fixture.events.foldLeft[Either[String, Unit]](Right(())): (result, stored) =>
+              for
+                _ <- result
+                decoded <- ArticleEventJsonCodec.decode(stored.event.toJson)
+                encoded <- ArticleEventJsonCodec.encode(decoded).fromJson[Json]
+                _ <- Either.cond(encoded == stored.event, (), s"wire mismatch at seq ${stored.seq}")
+              yield ()
+
+      assertTrue(result == Right(()))
+    },
   )
+
+private final case class ArticleEventStreamFixture(events: List[FixtureEvent]) derives JsonDecoder
+private final case class FixtureEvent(seq: Long, event: Json) derives JsonDecoder
