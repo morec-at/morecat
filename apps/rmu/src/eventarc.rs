@@ -111,7 +111,7 @@ fn decode_event(headers: &HeaderMap, body: &[u8]) -> Result<AcceptedEvent, Strin
         return Err("unsupported CloudEvent type".to_owned());
     }
 
-    required_header(headers, "ce-source")?;
+    let source = required_header(headers, "ce-source")?;
     let event_id = required_header(headers, "ce-id")?.to_owned();
     if required_header(headers, "content-type")? != "application/protobuf" {
         return Err("unsupported content type".to_owned());
@@ -125,6 +125,14 @@ fn decode_event(headers: &HeaderMap, body: &[u8]) -> Result<AcceptedEvent, Strin
         .ok_or_else(|| "missing Firestore document value".to_owned())?;
     let document = parse_document_name(&name)
         .map_err(|error| format!("invalid Firestore document name: {error:?}"))?;
+    let database_resource = name
+        .split_once("/documents/")
+        .map(|(database, _)| database)
+        .ok_or_else(|| "invalid Firestore document name".to_owned())?;
+    let expected_source = format!("//firestore.googleapis.com/{database_resource}");
+    if source != expected_source {
+        return Err("CloudEvent source does not match the document database".to_owned());
+    }
 
     Ok(AcceptedEvent { event_id, document })
 }
@@ -271,7 +279,7 @@ mod tests {
                 .header("ce-id", "malformed-body")
                 .header(
                     "ce-source",
-                    "//firestore.googleapis.com/projects/demo-morecat",
+                    "//firestore.googleapis.com/projects/demo-morecat/databases/(default)",
                 )
                 .header("ce-type", FIRESTORE_CREATED_EVENT)
                 .header(CONTENT_TYPE, "application/protobuf")
@@ -290,6 +298,26 @@ mod tests {
             assert!(!dead_letters[0].body.is_empty());
             assert!(dead_letters[0].source.is_some());
         }
+    }
+
+    #[tokio::test]
+    async fn rejects_a_cloudevent_source_that_does_not_match_the_document_database() {
+        let actions = Arc::new(RecordingActions::default());
+        let mut request = valid_request();
+        request.headers_mut().insert(
+            "ce-source",
+            "//storage.googleapis.com/projects/demo-morecat"
+                .parse()
+                .expect("valid header value"),
+        );
+
+        let response = router(actions.clone()).oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert!(actions.processed.lock().unwrap().is_empty());
+        let dead_letters = actions.dead_letters.lock().unwrap();
+        assert_eq!(dead_letters.len(), 1);
+        assert!(dead_letters[0].reason.contains("CloudEvent source"));
     }
 
     #[tokio::test]
@@ -356,7 +384,7 @@ mod tests {
             .header("ce-id", "event-1")
             .header(
                 "ce-source",
-                "//firestore.googleapis.com/projects/demo-morecat",
+                "//firestore.googleapis.com/projects/demo-morecat/databases/(default)",
             )
             .header("ce-type", FIRESTORE_CREATED_EVENT)
             .header(CONTENT_TYPE, "application/protobuf")

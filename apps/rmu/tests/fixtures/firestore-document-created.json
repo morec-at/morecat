@@ -2,7 +2,7 @@
   "headers": {
     "ce-specversion": "1.0",
     "ce-id": "event-1",
-    "ce-source": "//firestore.googleapis.com/projects/demo-morecat",
+    "ce-source": "//firestore.googleapis.com/projects/demo-morecat/databases/(default)",
     "ce-type": "google.cloud.firestore.document.v1.created",
     "content-type": "application/protobuf"
   },
