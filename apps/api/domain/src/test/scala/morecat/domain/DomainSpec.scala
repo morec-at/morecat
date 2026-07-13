@@ -37,6 +37,16 @@ object DomainSpec extends ZIOSpecDefault:
           assertTrue(Slug.either(s).isLeft)
         }
       },
+      test("accepts a slug exactly at the length limit") {
+        val slug = "a" * Slug.MaxLength
+
+        assertTrue(Slug.either(slug) == Right(slug))
+      },
+      test("rejects a slug longer than the length limit") {
+        val slug = "a" * (Slug.MaxLength + 1)
+
+        assertTrue(Slug.either(slug).isLeft)
+      },
     ),
     suite("Title")(
       test("accepted iff non-empty") {
