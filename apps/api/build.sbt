@@ -8,6 +8,9 @@ val zioJsonVersion = "0.9.0"
 val tapirVersion = "1.13.27"
 val javaUuidGeneratorVersion = "5.2.0"
 val googleCloudFirestoreVersion = "3.43.1"
+val magnumVersion = "2.0.0-M3"
+val postgresVersion = "42.7.7"
+val hikariVersion = "6.3.3"
 
 lazy val FirestoreIntegration = config("firestoreIntegration") extend Test
 
@@ -77,6 +80,9 @@ lazy val infrastructure = project
       "com.softwaremill.sttp.tapir" %% "tapir-json-zio" % tapirVersion,
       "com.fasterxml.uuid" % "java-uuid-generator" % javaUuidGeneratorVersion,
       "com.google.cloud" % "google-cloud-firestore" % googleCloudFirestoreVersion,
+      "com.augustnagro" %% "magnumzio" % magnumVersion,
+      "org.postgresql" % "postgresql" % postgresVersion,
+      "com.zaxxer" % "HikariCP" % hikariVersion,
       "dev.zio" %% "zio-test"     % zioVersion % Test,
       "dev.zio" %% "zio-test-sbt" % zioVersion % Test,
     ),

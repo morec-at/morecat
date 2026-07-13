@@ -7,10 +7,15 @@ import zio.http.*
 final class ApiHttpApp(
   createArticleEndpoint: CreateArticleEndpoint,
   publishArticleEndpoint: PublishArticleEndpoint,
+  getPublishedArticleEndpoint: GetPublishedArticleEndpoint,
 ):
   private val endpointRoutes: Routes[Any, Response] =
     ZioHttpInterpreter().toHttp(
-      List(createArticleEndpoint.endpoint, publishArticleEndpoint.endpoint)
+      List(
+        createArticleEndpoint.endpoint,
+        publishArticleEndpoint.endpoint,
+        getPublishedArticleEndpoint.endpoint,
+      )
     )
 
   val handler: Handler[Any, Nothing, Request, Response] =
