@@ -41,9 +41,15 @@ pub struct DeadLetter {
     pub reason: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProcessingError {
+    Permanent(String),
+    Transient(String),
+}
+
 #[async_trait]
 pub trait EventActions: Send + Sync {
-    async fn process(&self, event: AcceptedEvent) -> Result<(), String>;
+    async fn process(&self, event: AcceptedEvent) -> Result<(), ProcessingError>;
     async fn record_dead_letter(&self, dead_letter: DeadLetter) -> Result<(), String>;
 }
 
@@ -66,21 +72,31 @@ async fn receive_event(
     match decode_event(&headers, &body) {
         Ok(event) => match state.actions.process(event).await {
             Ok(()) => StatusCode::NO_CONTENT,
-            Err(_) => StatusCode::SERVICE_UNAVAILABLE,
-        },
-        Err(reason) => {
-            let dead_letter = DeadLetter {
-                event_id: header(&headers, "ce-id"),
-                event_type: header(&headers, "ce-type"),
-                source: header(&headers, "ce-source"),
-                body: body.to_vec(),
-                reason,
-            };
-            match state.actions.record_dead_letter(dead_letter).await {
-                Ok(()) => StatusCode::NO_CONTENT,
-                Err(_) => StatusCode::SERVICE_UNAVAILABLE,
+            Err(ProcessingError::Permanent(reason)) => {
+                record_dead_letter(&state, &headers, &body, reason).await
             }
-        }
+            Err(ProcessingError::Transient(_)) => StatusCode::SERVICE_UNAVAILABLE,
+        },
+        Err(reason) => record_dead_letter(&state, &headers, &body, reason).await,
+    }
+}
+
+async fn record_dead_letter(
+    state: &AppState,
+    headers: &HeaderMap,
+    body: &[u8],
+    reason: String,
+) -> StatusCode {
+    let dead_letter = DeadLetter {
+        event_id: header(headers, "ce-id"),
+        event_type: header(headers, "ce-type"),
+        source: header(headers, "ce-source"),
+        body: body.to_vec(),
+        reason,
+    };
+    match state.actions.record_dead_letter(dead_letter).await {
+        Ok(()) => StatusCode::NO_CONTENT,
+        Err(_) => StatusCode::SERVICE_UNAVAILABLE,
     }
 }
 
@@ -161,14 +177,20 @@ mod tests {
         processed: Mutex<Vec<AcceptedEvent>>,
         dead_letters: Mutex<Vec<DeadLetter>>,
         fail_processing: AtomicBool,
+        fail_permanently: AtomicBool,
         fail_dead_letter: AtomicBool,
     }
 
     #[async_trait]
     impl EventActions for RecordingActions {
-        async fn process(&self, event: AcceptedEvent) -> Result<(), String> {
+        async fn process(&self, event: AcceptedEvent) -> Result<(), ProcessingError> {
+            if self.fail_permanently.load(Ordering::Relaxed) {
+                return Err(ProcessingError::Permanent(
+                    "invalid event stream".to_owned(),
+                ));
+            }
             if self.fail_processing.load(Ordering::Relaxed) {
-                return Err("processing failed".to_owned());
+                return Err(ProcessingError::Transient("processing failed".to_owned()));
             }
             self.processed.lock().unwrap().push(event);
             Ok(())
@@ -283,6 +305,23 @@ mod tests {
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         assert!(actions.processed.lock().unwrap().is_empty());
         assert!(actions.dead_letters.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn acknowledges_permanent_processing_failures_after_recording_them() {
+        let actions = Arc::new(RecordingActions::default());
+        actions.fail_permanently.store(true, Ordering::Relaxed);
+
+        let response = router(actions.clone())
+            .oneshot(valid_request())
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert!(actions.processed.lock().unwrap().is_empty());
+        let dead_letters = actions.dead_letters.lock().unwrap();
+        assert_eq!(dead_letters.len(), 1);
+        assert!(dead_letters[0].reason.contains("invalid event stream"));
     }
 
     #[tokio::test]
