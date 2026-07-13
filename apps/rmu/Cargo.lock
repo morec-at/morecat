@@ -303,6 +303,7 @@ dependencies = [
  "async-trait",
  "axum",
  "base64",
+ "mime",
  "prost",
  "serde",
  "serde_json",

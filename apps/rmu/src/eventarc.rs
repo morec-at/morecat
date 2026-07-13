@@ -113,7 +113,7 @@ fn decode_event(headers: &HeaderMap, body: &[u8]) -> Result<AcceptedEvent, Strin
 
     let source = required_header(headers, "ce-source")?;
     let event_id = required_header(headers, "ce-id")?.to_owned();
-    if required_header(headers, "content-type")? != "application/protobuf" {
+    if !is_protobuf_content_type(required_header(headers, "content-type")?) {
         return Err("unsupported content type".to_owned());
     }
 
@@ -135,6 +135,12 @@ fn decode_event(headers: &HeaderMap, body: &[u8]) -> Result<AcceptedEvent, Strin
     }
 
     Ok(AcceptedEvent { event_id, document })
+}
+
+fn is_protobuf_content_type(value: &str) -> bool {
+    value.parse::<mime::Mime>().is_ok_and(|media_type| {
+        media_type.type_() == mime::APPLICATION && media_type.subtype() == "protobuf"
+    })
 }
 
 fn required_header<'a>(headers: &'a HeaderMap, name: &str) -> Result<&'a str, String> {
@@ -258,6 +264,26 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn accepts_equivalent_protobuf_content_types() {
+        for content_type in [
+            "Application/Protobuf",
+            "application/protobuf; charset=utf-8",
+        ] {
+            let actions = Arc::new(RecordingActions::default());
+            let request = request_with_header(CONTENT_TYPE.as_str(), content_type);
+
+            let response = router(actions.clone()).oneshot(request).await.unwrap();
+
+            assert_eq!(response.status(), StatusCode::NO_CONTENT, "{content_type}");
+            assert_eq!(actions.processed.lock().unwrap().len(), 1, "{content_type}");
+            assert!(
+                actions.dead_letters.lock().unwrap().is_empty(),
+                "{content_type}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn acknowledges_permanent_input_errors_after_recording_them() {
         let cases = [
             {
@@ -281,6 +307,8 @@ mod tests {
             request_with_header("ce-specversion", "0.3"),
             request_with_header("ce-type", "google.cloud.firestore.document.v1.updated"),
             request_with_header(CONTENT_TYPE.as_str(), "application/json"),
+            request_with_header(CONTENT_TYPE.as_str(), "text/protobuf"),
+            request_with_header(CONTENT_TYPE.as_str(), "not a media type"),
             request_with_data(DocumentEventData { value: None }),
             request_with_data(DocumentEventData {
                 value: Some(FirestoreDocument {
