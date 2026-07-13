@@ -48,7 +48,7 @@ object PostgresPublishedArticleQuery:
   private[postgres] def fromRows(rows: PublishedArticleRows): PostgresPublishedArticleQuery =
     new PostgresPublishedArticleQuery(rows)
 
-// The SQL is exercised against Postgres once the shared integration-test database is added.
+// Live SQL is exercised by PostgresPublishedArticleQueryIntegrationSpec.
 // $COVERAGE-OFF$
 private final class LivePublishedArticleRows(transactor: TransactorZIO)
     extends PublishedArticleRows:
