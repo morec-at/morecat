@@ -42,7 +42,7 @@ pub fn parse_document_name(name: &str) -> Result<EventDocument, InvalidDocumentN
     let seq = seq
         .parse::<u64>()
         .ok()
-        .filter(|seq| *seq > 0)
+        .filter(|parsed| *parsed > 0 && parsed.to_string() == *seq)
         .ok_or(InvalidDocumentName::InvalidSequence)?;
 
     Ok(EventDocument { article_id, seq })
@@ -92,6 +92,21 @@ mod tests {
             (
                 "projects/p/databases/(default)/documents/articles/\
                  018f4edc-1f5a-7c4b-aef9-000000000001/events/latest",
+                InvalidDocumentName::InvalidSequence,
+            ),
+            (
+                "projects/p/databases/(default)/documents/articles/\
+                 018f4edc-1f5a-7c4b-aef9-000000000001/events/01",
+                InvalidDocumentName::InvalidSequence,
+            ),
+            (
+                "projects/p/databases/(default)/documents/articles/\
+                 018f4edc-1f5a-7c4b-aef9-000000000001/events/0001",
+                InvalidDocumentName::InvalidSequence,
+            ),
+            (
+                "projects/p/databases/(default)/documents/articles/\
+                 018f4edc-1f5a-7c4b-aef9-000000000001/events/+1",
                 InvalidDocumentName::InvalidSequence,
             ),
             (
