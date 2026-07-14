@@ -26,7 +26,8 @@ where
 
 #[async_trait]
 pub trait ArticleProjectionStore: Send + Sync {
-    async fn upsert(&self, projection: ArticleProjection) -> Result<(), String>;
+    /// Updates the stored projection only when `last_applied_seq` advances.
+    async fn upsert_if_newer(&self, projection: ArticleProjection) -> Result<(), String>;
 }
 
 #[async_trait]
@@ -70,9 +71,12 @@ where
         let projection = project_article(article_id, events).map_err(|error| {
             ProcessingError::Permanent(format!("invalid article event stream: {error:?}"))
         })?;
-        self.projections.upsert(projection).await.map_err(|error| {
-            ProcessingError::Transient(format!("projection upsert failed: {error}"))
-        })
+        self.projections
+            .upsert_if_newer(projection)
+            .await
+            .map_err(|error| {
+                ProcessingError::Transient(format!("projection upsert failed: {error}"))
+            })
     }
 
     async fn record_dead_letter(&self, dead_letter: DeadLetter) -> Result<(), String> {
@@ -130,7 +134,7 @@ mod tests {
 
     #[async_trait]
     impl ArticleProjectionStore for RecordingProjectionStore {
-        async fn upsert(&self, projection: ArticleProjection) -> Result<(), String> {
+        async fn upsert_if_newer(&self, projection: ArticleProjection) -> Result<(), String> {
             if let Some(error) = &self.error {
                 return Err(error.clone());
             }
