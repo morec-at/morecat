@@ -2,6 +2,7 @@ use uuid::Uuid;
 
 pub mod eventarc;
 pub mod firestore_stream;
+pub mod processor;
 pub mod projection;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
