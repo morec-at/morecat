@@ -1,6 +1,6 @@
 name: ci
 
-# モノレポの path フィルタで変更部分のみビルド。
+# main への push は path filter し、PR は required check を必ず生成するため全件実行する。
 # ツールチェーンはローカルと同じ nix dev shell を使う（CI == local の再現性）。
 # Action はサプライチェーン保護のためコミット SHA で固定（末尾コメントはバージョン目安）。
 
@@ -13,13 +13,6 @@ on:
       - 'flake.lock'
       - '.github/workflows/ci.yml'
   pull_request:
-    paths:
-      - 'AGENTS.md'
-      - '.agents/skills/**'
-      - 'apps/api/**'
-      - 'flake.nix'
-      - 'flake.lock'
-      - '.github/workflows/ci.yml'
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
