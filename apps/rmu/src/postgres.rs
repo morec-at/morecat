@@ -97,7 +97,6 @@ fn dead_letter_deduplication_key(dead_letter: &DeadLetter) -> [u8; 32] {
     update_optional_field(&mut hasher, dead_letter.event_type.as_deref());
     update_optional_field(&mut hasher, dead_letter.source.as_deref());
     update_field(&mut hasher, &dead_letter.body);
-    update_field(&mut hasher, dead_letter.reason.as_bytes());
     hasher.finalize().into()
 }
 
@@ -293,6 +292,34 @@ mod tests {
 
         store.record(dead_letter.clone()).await.unwrap();
         store.record(dead_letter).await.unwrap();
+
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM rmu_dead_letters")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn deduplicates_a_retry_when_only_the_reason_changes() {
+        let (_container, pool) = migrated_postgres().await;
+        let store = PostgresDeadLetterStore::new(pool.clone());
+        let dead_letter = DeadLetter {
+            event_id: Some("event-1".to_owned()),
+            event_type: Some("google.cloud.firestore.document.v1.created".to_owned()),
+            source: Some("//firestore.googleapis.com/projects/p/databases/d".to_owned()),
+            body: vec![0, 1, 2, 255],
+            reason: "invalid input".to_owned(),
+        };
+
+        store.record(dead_letter.clone()).await.unwrap();
+        store
+            .record(DeadLetter {
+                reason: "invalid input: details changed".to_owned(),
+                ..dead_letter
+            })
+            .await
+            .unwrap();
 
         let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM rmu_dead_letters")
             .fetch_one(&pool)
