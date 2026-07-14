@@ -23,6 +23,8 @@
           pkgs.clippy
           pkgs.cargo-llvm-cov
           pkgs.llvmPackages_21.llvm.out
+          pkgs.pkg-config
+          pkgs.openssl
           pkgs.firebase-tools
           jdk
         ]; # apps/rmu
