@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 
 use crate::{
@@ -68,10 +69,13 @@ impl PostgresDeadLetterStore {
 #[async_trait]
 impl DeadLetterStore for PostgresDeadLetterStore {
     async fn record(&self, dead_letter: DeadLetter) -> Result<(), String> {
+        let deduplication_key = dead_letter_deduplication_key(&dead_letter);
         sqlx::query(
             r#"
-            INSERT INTO rmu_dead_letters (event_id, event_type, source, body, reason)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO rmu_dead_letters (
+              event_id, event_type, source, body, reason, deduplication_key
+            ) VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (deduplication_key) DO NOTHING
             "#,
         )
         .bind(dead_letter.event_id)
@@ -79,11 +83,37 @@ impl DeadLetterStore for PostgresDeadLetterStore {
         .bind(dead_letter.source)
         .bind(dead_letter.body)
         .bind(dead_letter.reason)
+        .bind(deduplication_key.as_slice())
         .execute(&self.pool)
         .await
         .map(|_| ())
         .map_err(|error| error.to_string())
     }
+}
+
+fn dead_letter_deduplication_key(dead_letter: &DeadLetter) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    update_optional_field(&mut hasher, dead_letter.event_id.as_deref());
+    update_optional_field(&mut hasher, dead_letter.event_type.as_deref());
+    update_optional_field(&mut hasher, dead_letter.source.as_deref());
+    update_field(&mut hasher, &dead_letter.body);
+    update_field(&mut hasher, dead_letter.reason.as_bytes());
+    hasher.finalize().into()
+}
+
+fn update_optional_field(hasher: &mut Sha256, value: Option<&str>) {
+    match value {
+        Some(value) => {
+            hasher.update([1]);
+            update_field(hasher, value.as_bytes());
+        }
+        None => hasher.update([0]),
+    }
+}
+
+fn update_field(hasher: &mut Sha256, value: &[u8]) {
+    hasher.update((value.len() as u64).to_be_bytes());
+    hasher.update(value);
 }
 
 #[cfg(all(test, feature = "postgres-integration"))]
@@ -246,6 +276,48 @@ mod tests {
                 vec![0, 1, 2, 255],
                 "invalid Firestore document name".to_owned(),
             )
+        );
+    }
+
+    #[tokio::test]
+    async fn records_a_retried_dead_letter_only_once_without_an_event_id() {
+        let (_container, pool) = migrated_postgres().await;
+        let store = PostgresDeadLetterStore::new(pool.clone());
+        let dead_letter = DeadLetter {
+            event_id: None,
+            event_type: Some("google.cloud.firestore.document.v1.created".to_owned()),
+            source: None,
+            body: vec![42; 10_000],
+            reason: "invalid Firestore document name".to_owned(),
+        };
+
+        store.record(dead_letter.clone()).await.unwrap();
+        store.record(dead_letter).await.unwrap();
+
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM rmu_dead_letters")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn separates_optional_values_and_field_boundaries_in_dead_letter_keys() {
+        let dead_letter = |event_id: Option<&str>, event_type: Option<&str>| DeadLetter {
+            event_id: event_id.map(str::to_owned),
+            event_type: event_type.map(str::to_owned),
+            source: None,
+            body: Vec::new(),
+            reason: "invalid input".to_owned(),
+        };
+
+        assert_ne!(
+            dead_letter_deduplication_key(&dead_letter(None, Some("a"))),
+            dead_letter_deduplication_key(&dead_letter(Some(""), Some("a")))
+        );
+        assert_ne!(
+            dead_letter_deduplication_key(&dead_letter(Some("a"), Some("bc"))),
+            dead_letter_deduplication_key(&dead_letter(Some("ab"), Some("c")))
         );
     }
 
