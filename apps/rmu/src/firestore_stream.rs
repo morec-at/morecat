@@ -27,7 +27,7 @@ pub trait FirestoreEventDocuments: Send + Sync {
     async fn load_event_documents(
         &self,
         article_id: Uuid,
-    ) -> Result<Vec<FirestoreEventDocument>, String>;
+    ) -> Result<Vec<FirestoreEventDocument>, StreamReadError>;
 }
 
 pub struct GoogleFirestoreEventDocuments {
@@ -93,12 +93,16 @@ fn firestore_error_message(error: FirestoreError) -> String {
     error.to_string()
 }
 
+fn firestore_unavailable(error: FirestoreError) -> StreamReadError {
+    StreamReadError::Unavailable(firestore_error_message(error))
+}
+
 #[async_trait]
 impl FirestoreEventDocuments for GoogleFirestoreEventDocuments {
     async fn load_event_documents(
         &self,
         article_id: Uuid,
-    ) -> Result<Vec<FirestoreEventDocument>, String> {
+    ) -> Result<Vec<FirestoreEventDocument>, StreamReadError> {
         let parent = format!("{}/articles/{article_id}", self.db.get_documents_path());
         let stream = self
             .db
@@ -108,18 +112,19 @@ impl FirestoreEventDocuments for GoogleFirestoreEventDocuments {
             .parent(parent)
             .stream_all_with_errors()
             .await
-            .map_err(firestore_error_message)?;
-        let documents: Vec<_> = stream
-            .try_collect()
-            .await
-            .map_err(firestore_error_message)?;
+            .map_err(firestore_unavailable)?;
+        let documents: Vec<_> = stream.try_collect().await.map_err(firestore_unavailable)?;
 
         documents
             .into_iter()
             .map(|document| {
                 let name = document.name.clone();
-                let fields: EventFields = firestore_document_to_serializable(&document)
-                    .map_err(|error| format!("invalid Firestore event document {name}: {error}"))?;
+                let fields: EventFields =
+                    firestore_document_to_serializable(&document).map_err(|error| {
+                        StreamReadError::InvalidDocument(format!(
+                            "invalid Firestore event document {name}: {error}"
+                        ))
+                    })?;
                 Ok(FirestoreEventDocument {
                     name: document.name,
                     json: fields.json,
@@ -141,11 +146,7 @@ impl<Q> FirestoreEventStreamReader<Q> {
 
 impl<Q: FirestoreEventDocuments> FirestoreEventStreamReader<Q> {
     pub async fn load(&self, article_id: Uuid) -> Result<Vec<StoredArticleEvent>, StreamReadError> {
-        let documents = self
-            .query
-            .load_event_documents(article_id)
-            .await
-            .map_err(StreamReadError::Unavailable)?;
+        let documents = self.query.load_event_documents(article_id).await?;
         let mut events = Vec::with_capacity(documents.len());
 
         for document in documents {
@@ -185,7 +186,7 @@ mod tests {
     }
 
     struct StubQuery {
-        result: Result<Vec<FirestoreEventDocument>, String>,
+        result: Result<Vec<FirestoreEventDocument>, StreamReadError>,
     }
 
     #[async_trait]
@@ -193,7 +194,7 @@ mod tests {
         async fn load_event_documents(
             &self,
             _article_id: Uuid,
-        ) -> Result<Vec<FirestoreEventDocument>, String> {
+        ) -> Result<Vec<FirestoreEventDocument>, StreamReadError> {
             self.result.clone()
         }
     }
@@ -213,7 +214,7 @@ mod tests {
     }
 
     #[test]
-    fn preserves_firestore_error_details() {
+    fn maps_firestore_failures_to_unavailable_with_details() {
         let error = FirestoreError::InvalidParametersError(FirestoreInvalidParametersError::new(
             FirestoreInvalidParametersPublicDetails::new(
                 "article_id".to_owned(),
@@ -222,8 +223,11 @@ mod tests {
         ));
 
         assert_eq!(
-            firestore_error_message(error),
-            "Data not found error occurred: Invalid parameters error: article_id. invalid"
+            firestore_unavailable(error),
+            StreamReadError::Unavailable(
+                "Data not found error occurred: Invalid parameters error: article_id. invalid"
+                    .to_owned()
+            )
         );
     }
 
@@ -290,7 +294,7 @@ mod tests {
     async fn preserves_firestore_query_failures_as_unavailable() {
         let article_id = Uuid::parse_str("018f4edc-1f5a-7c4b-aef9-000000000001").unwrap();
         let reader = FirestoreEventStreamReader::new(StubQuery {
-            result: Err("query failed".to_owned()),
+            result: Err(StreamReadError::Unavailable("query failed".to_owned())),
         });
 
         assert_eq!(
@@ -378,14 +382,17 @@ mod tests {
             .await
             .unwrap();
 
-        let result = documents.load_event_documents(article_id).await;
+        let result = FirestoreEventStreamReader::new(documents)
+            .load(article_id)
+            .await;
         let expected_name = format!(
             "projects/demo-morecat/databases/(default)/documents/articles/{article_id}/events/1"
         );
 
         assert!(matches!(
             result,
-            Err(message) if message.starts_with(&format!("invalid Firestore event document {expected_name}:"))
+            Err(StreamReadError::InvalidDocument(message))
+                if message.starts_with(&format!("invalid Firestore event document {expected_name}:"))
         ));
     }
 }
