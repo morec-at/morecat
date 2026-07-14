@@ -2,7 +2,8 @@ use async_trait::async_trait;
 use sqlx::PgPool;
 
 use crate::{
-    processor::ArticleProjectionStore,
+    eventarc::DeadLetter,
+    processor::{ArticleProjectionStore, DeadLetterStore},
     projection::{ArticleProjection, ArticleStatus},
 };
 
@@ -54,10 +55,44 @@ impl ArticleProjectionStore for PostgresArticleProjectionStore {
     }
 }
 
+pub struct PostgresDeadLetterStore {
+    pool: PgPool,
+}
+
+impl PostgresDeadLetterStore {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl DeadLetterStore for PostgresDeadLetterStore {
+    async fn record(&self, dead_letter: DeadLetter) -> Result<(), String> {
+        sqlx::query(
+            r#"
+            INSERT INTO rmu_dead_letters (event_id, event_type, source, body, reason)
+            VALUES ($1, $2, $3, $4, $5)
+            "#,
+        )
+        .bind(dead_letter.event_id)
+        .bind(dead_letter.event_type)
+        .bind(dead_letter.source)
+        .bind(dead_letter.body)
+        .bind(dead_letter.reason)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+    }
+}
+
 #[cfg(all(test, feature = "postgres-integration"))]
 mod tests {
     use sqlx::postgres::PgPoolOptions;
-    use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
+    use testcontainers_modules::{
+        postgres::Postgres,
+        testcontainers::{ImageExt, runners::AsyncRunner},
+    };
     use uuid::Uuid;
 
     use crate::projection::{ArticleProjection, ArticleStatus};
@@ -174,6 +209,68 @@ mod tests {
         assert!(result.unwrap_err().contains("articles"));
     }
 
+    #[tokio::test]
+    async fn records_a_dead_letter_with_optional_cloudevent_metadata() {
+        let (_container, pool) = migrated_postgres().await;
+        let store = PostgresDeadLetterStore::new(pool.clone());
+
+        store
+            .record(DeadLetter {
+                event_id: None,
+                event_type: Some("google.cloud.firestore.document.v1.created".to_owned()),
+                source: None,
+                body: vec![0, 1, 2, 255],
+                reason: "invalid Firestore document name".to_owned(),
+            })
+            .await
+            .unwrap();
+
+        let row: (
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Vec<u8>,
+            String,
+        ) = sqlx::query_as(
+            "SELECT event_id, event_type, source, body, reason FROM rmu_dead_letters",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            row,
+            (
+                None,
+                Some("google.cloud.firestore.document.v1.created".to_owned()),
+                None,
+                vec![0, 1, 2, 255],
+                "invalid Firestore document name".to_owned(),
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn reports_dead_letter_insert_failures() {
+        let (_container, pool) = migrated_postgres().await;
+        sqlx::query("DROP TABLE rmu_dead_letters")
+            .execute(&pool)
+            .await
+            .unwrap();
+        let store = PostgresDeadLetterStore::new(pool);
+
+        let result = store
+            .record(DeadLetter {
+                event_id: Some("event-1".to_owned()),
+                event_type: None,
+                source: Some("event-source".to_owned()),
+                body: Vec::new(),
+                reason: "invalid input".to_owned(),
+            })
+            .await;
+
+        assert!(result.unwrap_err().contains("rmu_dead_letters"));
+    }
+
     fn projection(last_applied_seq: u64, status: ArticleStatus) -> ArticleProjection {
         let published_at = match status {
             ArticleStatus::Draft => None,
@@ -194,7 +291,11 @@ mod tests {
         testcontainers_modules::testcontainers::ContainerAsync<Postgres>,
         PgPool,
     ) {
-        let container = Postgres::default().start().await.unwrap();
+        let container = Postgres::default()
+            .with_tag("17-alpine")
+            .start()
+            .await
+            .unwrap();
         let host = container.get_host().await.unwrap();
         let port = container.get_host_port_ipv4(5432).await.unwrap();
         let pool = PgPoolOptions::new()
@@ -206,6 +307,12 @@ mod tests {
             .unwrap();
         sqlx::raw_sql(include_str!(
             "../../api/infrastructure/src/main/resources/db/migration/V1__create_articles.sql"
+        ))
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::raw_sql(include_str!(
+            "../../api/infrastructure/src/main/resources/db/migration/V2__create_rmu_dead_letters.sql"
         ))
         .execute(&pool)
         .await
