@@ -2,6 +2,7 @@ use uuid::Uuid;
 
 pub mod eventarc;
 pub mod firestore_stream;
+pub mod postgres;
 pub mod processor;
 pub mod projection;
 
