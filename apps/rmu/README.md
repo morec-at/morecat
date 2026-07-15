@@ -14,9 +14,11 @@ cargo test
 ```
 
 API と同様に line / region coverage はともに 100% を必須とする。CI と同じ条件で確認するには次を実行する。
+Docker を起動し、macOS で標準以外の Docker context を使う場合は Testcontainers に socket を伝えてから実行する。
 
 ```sh
 cd ../..
+export DOCKER_HOST="$(docker context inspect --format '{{.Endpoints.docker.Host}}')"
 firebase emulators:exec \
   --config apps/api/firebase.json \
   --only firestore \
@@ -24,6 +26,6 @@ firebase emulators:exec \
   'cargo llvm-cov --manifest-path apps/rmu/Cargo.toml --locked --all-features --fail-under-lines 100 --fail-under-regions 100'
 ```
 
-`--all-features` では Firestore SDK の統合テストも動くため、Firestore emulator が必要になる。`firebase emulators:exec` はテスト中だけ emulator を起動し、終了後に停止する。
+`--all-features` では Firestore SDK と Postgres adapter の統合テストも動くため、Firestore emulator と Docker が必要になる。Postgres 17 の Testcontainers はテスト中だけ起動し、終了後に停止する。`firebase emulators:exec` も同様に Firestore emulator の起動と停止を管理する。
 
 HTML レポートを確認する場合は、上記の内側のコマンドに `--html --open` を追加する。Rust stable では LLVM branch coverage が未安定のため、式や分岐アーム単位で計測する region coverage を使用する。
