@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+pub mod bootstrap;
 pub mod eventarc;
 pub mod firestore_stream;
 pub mod postgres;
