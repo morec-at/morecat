@@ -36,6 +36,9 @@ pub struct GoogleFirestoreEventDocuments {
 
 impl GoogleFirestoreEventDocuments {
     pub async fn new(project_id: &str) -> Result<Self, String> {
+        if project_id.is_empty() {
+            return Err("project ID must not be empty".to_owned());
+        }
         let options = FirestoreDbOptions::new(project_id.to_owned());
         FirestoreDb::with_options_token_source(
             options,
@@ -45,6 +48,11 @@ impl GoogleFirestoreEventDocuments {
         .await
         .map(|db| Self { db })
         .map_err(firestore_error_message)
+    }
+
+    #[cfg(all(test, feature = "firestore-integration"))]
+    pub(crate) fn database(&self) -> &FirestoreDb {
+        &self.db
     }
 }
 
