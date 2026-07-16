@@ -22,6 +22,17 @@ use testcontainers_modules::{
 
 #[test]
 fn rejects_missing_runtime_configuration() {
+    let unknown_command = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
+        .arg("unknown")
+        .output()
+        .unwrap();
+    assert!(!unknown_command.status.success());
+    assert!(
+        String::from_utf8(unknown_command.stderr)
+            .unwrap()
+            .contains("usage: morecat-rmu [replay]")
+    );
+
     let missing = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
         .env_remove("GOOGLE_CLOUD_PROJECT")
         .env_remove("DATABASE_URL")
@@ -34,6 +45,33 @@ fn rejects_missing_runtime_configuration() {
         String::from_utf8(missing.stderr)
             .unwrap()
             .contains("missing GOOGLE_CLOUD_PROJECT")
+    );
+
+    let missing_replay = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
+        .arg("replay")
+        .env_remove("GOOGLE_CLOUD_PROJECT")
+        .env_remove("DATABASE_URL")
+        .env_remove("PORT")
+        .output()
+        .unwrap();
+    assert!(!missing_replay.status.success());
+    assert!(
+        String::from_utf8(missing_replay.stderr)
+            .unwrap()
+            .contains("missing GOOGLE_CLOUD_PROJECT")
+    );
+
+    let invalid_replay_database = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
+        .arg("replay")
+        .env("GOOGLE_CLOUD_PROJECT", "demo-morecat")
+        .env("DATABASE_URL", "postgres://user:secret@[invalid/morecat")
+        .output()
+        .unwrap();
+    assert!(!invalid_replay_database.status.success());
+    assert!(
+        String::from_utf8(invalid_replay_database.stderr)
+            .unwrap()
+            .contains("failed to connect to Postgres: invalid DATABASE_URL")
     );
 
     let invalid_database = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
@@ -85,6 +123,41 @@ fn initializes_live_dependencies_before_reporting_a_bind_failure() {
     );
 
     runtime.block_on(async move { drop(container) });
+}
+
+#[cfg(all(feature = "firestore-integration", feature = "postgres-integration"))]
+#[test]
+fn runs_replay_without_starting_the_http_listener() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let container = runtime.block_on(async {
+        Postgres::default()
+            .with_tag("17-alpine")
+            .start()
+            .await
+            .unwrap()
+    });
+    let host = runtime.block_on(container.get_host()).unwrap();
+    let postgres_port = runtime
+        .block_on(container.get_host_port_ipv4(5432))
+        .unwrap();
+    let database_url = format!("postgres://postgres:postgres@{host}:{postgres_port}/postgres");
+    let occupied = std::net::TcpListener::bind(("0.0.0.0", 0)).unwrap();
+    let occupied_port = occupied.local_addr().unwrap().port();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
+        .arg("replay")
+        .env("GOOGLE_CLOUD_PROJECT", "demo-morecat-empty-replay")
+        .env("DATABASE_URL", database_url)
+        .env("PORT", occupied_port.to_string())
+        .output()
+        .unwrap();
+    runtime.block_on(async move { drop(container) });
+
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        "Replayed 0 article(s)\n"
+    );
 }
 
 #[cfg(all(

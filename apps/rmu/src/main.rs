@@ -1,6 +1,18 @@
 #[tokio::main]
 async fn main() -> Result<(), String> {
-    morecat_rmu::bootstrap::run(std::env::vars_os().collect(), Box::pin(shutdown_signal())).await
+    let command =
+        morecat_rmu::bootstrap::RmuCommand::from_args(std::env::args_os().skip(1).collect())?;
+    let vars = std::env::vars_os().collect();
+    match command {
+        morecat_rmu::bootstrap::RmuCommand::Serve => {
+            morecat_rmu::bootstrap::run(vars, Box::pin(shutdown_signal())).await
+        }
+        morecat_rmu::bootstrap::RmuCommand::Replay => {
+            let count = morecat_rmu::bootstrap::run_replay(vars).await?;
+            println!("Replayed {count} article(s)");
+            Ok(())
+        }
+    }
 }
 
 #[cfg(unix)]
