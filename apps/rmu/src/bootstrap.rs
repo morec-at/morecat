@@ -1,7 +1,8 @@
-use std::{collections::HashMap, ffi::OsString, fmt, sync::Arc};
+use std::{collections::HashMap, ffi::OsString, fmt, future::Future, pin::Pin, sync::Arc};
 
 use axum::Router;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
+use tokio::net::TcpListener;
 
 use crate::{
     eventarc::{EventActions, router},
@@ -14,6 +15,7 @@ use crate::{
 pub struct RmuConfig {
     pub project_id: String,
     pub database_url: String,
+    pub port: u16,
 }
 
 impl fmt::Debug for RmuConfig {
@@ -22,20 +24,29 @@ impl fmt::Debug for RmuConfig {
             .debug_struct("RmuConfig")
             .field("project_id", &self.project_id)
             .field("database_url", &"[REDACTED]")
+            .field("port", &self.port)
             .finish()
     }
 }
 
 impl RmuConfig {
-    pub fn from_vars<I>(vars: I) -> Result<Self, String>
-    where
-        I: IntoIterator<Item = (OsString, OsString)>,
-    {
+    pub fn from_vars(vars: Vec<(OsString, OsString)>) -> Result<Self, String> {
         let vars: HashMap<_, _> = vars.into_iter().collect();
         Ok(Self {
             project_id: required_var(&vars, "GOOGLE_CLOUD_PROJECT")?,
             database_url: required_var(&vars, "DATABASE_URL")?,
+            port: port(&vars)?,
         })
+    }
+}
+
+fn port(vars: &HashMap<OsString, OsString>) -> Result<u16, String> {
+    match vars.get(&OsString::from("PORT")) {
+        None => Ok(8080),
+        Some(value) => value
+            .to_str()
+            .and_then(|value| value.parse().ok())
+            .ok_or_else(|| "invalid PORT".to_owned()),
     }
 }
 
@@ -68,13 +79,37 @@ pub async fn build_live_router(config: RmuConfig) -> Result<Router, String> {
     Ok(router(actions))
 }
 
+pub async fn run(
+    vars: Vec<(OsString, OsString)>,
+    shutdown: Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+) -> Result<(), String> {
+    let config = RmuConfig::from_vars(vars)?;
+    let port = config.port;
+    let app = build_live_router(config).await?;
+    let listener = TcpListener::bind(("0.0.0.0", port))
+        .await
+        .map_err(listener_error)?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown)
+        .await
+        .map_err(server_error)
+}
+
+fn listener_error(_error: std::io::Error) -> String {
+    "failed to bind RMU listener".to_owned()
+}
+
+fn server_error(_error: std::io::Error) -> String {
+    "RMU server failed".to_owned()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn loads_the_live_service_configuration() {
-        let result = RmuConfig::from_vars([
+        let result = RmuConfig::from_vars(vec![
             ("UNRELATED".into(), "ignored".into()),
             ("GOOGLE_CLOUD_PROJECT".into(), "demo-morecat".into()),
             (
@@ -88,6 +123,7 @@ mod tests {
             Ok(RmuConfig {
                 project_id: "demo-morecat".to_owned(),
                 database_url: "postgres://user:password@localhost/morecat".to_owned(),
+                port: 8080,
             })
         );
     }
@@ -95,11 +131,11 @@ mod tests {
     #[test]
     fn rejects_missing_empty_and_non_utf8_configuration() {
         assert_eq!(
-            RmuConfig::from_vars([]),
+            RmuConfig::from_vars(Vec::new()),
             Err("missing GOOGLE_CLOUD_PROJECT".to_owned())
         );
         assert_eq!(
-            RmuConfig::from_vars([
+            RmuConfig::from_vars(vec![
                 ("GOOGLE_CLOUD_PROJECT".into(), "demo-morecat".into()),
                 ("DATABASE_URL".into(), "".into()),
             ]),
@@ -111,7 +147,7 @@ mod tests {
             use std::os::unix::ffi::OsStringExt;
 
             assert_eq!(
-                RmuConfig::from_vars([
+                RmuConfig::from_vars(vec![
                     (
                         "GOOGLE_CLOUD_PROJECT".into(),
                         OsString::from_vec(vec![0xff])
@@ -127,15 +163,65 @@ mod tests {
     }
 
     #[test]
+    fn loads_and_validates_an_explicit_port() {
+        let vars = |port: OsString| {
+            [
+                ("GOOGLE_CLOUD_PROJECT".into(), "demo-morecat".into()),
+                (
+                    "DATABASE_URL".into(),
+                    "postgres://user:password@localhost/morecat".into(),
+                ),
+                ("PORT".into(), port),
+            ]
+        };
+
+        assert_eq!(
+            RmuConfig::from_vars(vars("9090".into()).into())
+                .unwrap()
+                .port,
+            9090
+        );
+        for invalid in ["".into(), "-1".into(), "65536".into()] {
+            assert_eq!(
+                RmuConfig::from_vars(vars(invalid).into()),
+                Err("invalid PORT".to_owned())
+            );
+        }
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStringExt;
+
+            assert_eq!(
+                RmuConfig::from_vars(vars(OsString::from_vec(vec![0xff])).into()),
+                Err("invalid PORT".to_owned())
+            );
+        }
+    }
+
+    #[test]
     fn redacts_database_credentials_from_debug_output() {
         let config = RmuConfig {
             project_id: "demo-morecat".to_owned(),
             database_url: "postgres://user:secret@localhost/morecat".to_owned(),
+            port: 8080,
         };
 
         assert_eq!(
             format!("{config:?}"),
-            "RmuConfig { project_id: \"demo-morecat\", database_url: \"[REDACTED]\" }"
+            "RmuConfig { project_id: \"demo-morecat\", database_url: \"[REDACTED]\", port: 8080 }"
+        );
+    }
+
+    #[test]
+    fn redacts_listener_and_server_error_details() {
+        assert_eq!(
+            listener_error(std::io::Error::other("listener secret")),
+            "failed to bind RMU listener"
+        );
+        assert_eq!(
+            server_error(std::io::Error::other("server secret")),
+            "RMU server failed"
         );
     }
 }
@@ -185,6 +271,7 @@ mod integration_tests {
         let router = build_live_router(RmuConfig {
             project_id: "demo-morecat".to_owned(),
             database_url,
+            port: 8080,
         })
         .await;
 
@@ -215,6 +302,7 @@ mod integration_tests {
         let firestore_error = build_live_router(RmuConfig {
             project_id: String::new(),
             database_url: "postgres://user:secret@localhost/morecat".to_owned(),
+            port: 8080,
         })
         .await;
         assert!(matches!(
@@ -226,6 +314,7 @@ mod integration_tests {
         let postgres_error = build_live_router(RmuConfig {
             project_id: "demo-morecat".to_owned(),
             database_url: "postgres://user:secret@[invalid/morecat".to_owned(),
+            port: 8080,
         })
         .await;
         assert_eq!(
@@ -238,12 +327,59 @@ mod integration_tests {
         let connection_error = build_live_router(RmuConfig {
             project_id: "demo-morecat".to_owned(),
             database_url: invalid_credentials,
+            port: 8080,
         })
         .await;
         assert_eq!(
             connection_error.err(),
             Some("failed to connect to Postgres".to_owned())
         );
+
+        let run_error = run(
+            vec![
+                ("GOOGLE_CLOUD_PROJECT".into(), "demo-morecat".into()),
+                (
+                    "DATABASE_URL".into(),
+                    "postgres://user:secret@[invalid/morecat".into(),
+                ),
+            ],
+            Box::pin(std::future::ready(())),
+        )
+        .await;
+        assert_eq!(
+            run_error,
+            Err("failed to connect to Postgres: invalid DATABASE_URL".to_owned())
+        );
+    }
+
+    #[tokio::test]
+    async fn binds_and_stops_the_live_service() {
+        let (_container, _pool, database_url) = migrated_postgres().await;
+
+        let result = run(
+            vec![
+                ("GOOGLE_CLOUD_PROJECT".into(), "demo-morecat".into()),
+                ("DATABASE_URL".into(), database_url.clone().into()),
+                ("PORT".into(), "0".into()),
+            ],
+            Box::pin(std::future::ready(())),
+        )
+        .await;
+
+        assert_eq!(result, Ok(()));
+
+        let occupied = TcpListener::bind(("0.0.0.0", 0)).await.unwrap();
+        let port = occupied.local_addr().unwrap().port();
+        let bind_error = run(
+            vec![
+                ("GOOGLE_CLOUD_PROJECT".into(), "demo-morecat".into()),
+                ("DATABASE_URL".into(), database_url.into()),
+                ("PORT".into(), port.to_string().into()),
+            ],
+            Box::pin(std::future::ready(())),
+        )
+        .await;
+        assert_eq!(bind_error, Err("failed to bind RMU listener".to_owned()));
     }
 
     async fn seed_draft_event() {
