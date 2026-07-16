@@ -3,6 +3,49 @@
 Firestore の Article event を Eventarc から受信し、Postgres の read model を更新する Rust サービス。
 API の Scala domain とはコード共有せず、event wire schema と projection fixture を契約として扱う。
 
+## Runtime configuration
+
+必須環境変数:
+
+- `GOOGLE_CLOUD_PROJECT`: event store を読む Firestore project ID
+- `DATABASE_URL`: Postgres 接続 URL（例: `postgres://morecat:password@127.0.0.1:5432/morecat`）
+
+任意環境変数:
+
+- `PORT`: HTTP listen port（未指定時 `8080`。Cloud Run が設定する値を使用）
+
+Firestore は Application Default Credentials と `FIRESTORE_EMULATOR_HOST` を含む Google Cloud SDK 標準設定を利用する。`SIGINT` または `SIGTERM` を受けると処理中の HTTP request を待ってから終了する。
+
+## Local startup
+
+Postgres に次の migration を順番に適用しておく。
+
+- `apps/api/infrastructure/src/main/resources/db/migration/V1__create_articles.sql`
+- `apps/api/infrastructure/src/main/resources/db/migration/V2__create_rmu_dead_letters.sql`
+
+リポジトリルートで `nix develop .#rust` に入り、2つのターミナルを使う。ターミナル1で Firestore emulator を起動する。
+
+```sh
+# terminal 1: repository root
+firebase emulators:start \
+  --config apps/api/firebase.json \
+  --only firestore \
+  --project demo-morecat
+```
+
+Firestore emulator が `127.0.0.1:8080` を使うため、ターミナル2では RMU を `8081` で起動する。
+
+```sh
+# terminal 2: repository root
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
+GOOGLE_CLOUD_PROJECT=demo-morecat \
+DATABASE_URL=postgres://morecat:local-dev-password@127.0.0.1:5432/morecat \
+PORT=8081 \
+cargo run --manifest-path apps/rmu/Cargo.toml
+```
+
+終了時は両ターミナルで `Ctrl-C` を入力する。
+
 ## Development
 
 リポジトリルートで Rust 用 dev shell に入り、テストを実行する。
