@@ -46,6 +46,22 @@ cargo run --manifest-path apps/rmu/Cargo.toml
 
 終了時は両ターミナルで `Ctrl-C` を入力する。
 
+## Manual replay
+
+`replay` command は Firestore の全 `events` subcollection を collection-group query で列挙し、article ID ごとに全 event stream を再読込して Postgres projection を更新する。HTTP listener は起動せず、最初の読み取り・projection エラーで非ゼロ終了する。
+
+```sh
+# repository root
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
+GOOGLE_CLOUD_PROJECT=demo-morecat \
+DATABASE_URL=postgres://morecat:local-dev-password@127.0.0.1:5432/morecat \
+cargo run --manifest-path apps/rmu/Cargo.toml -- replay
+```
+
+成功時は `Replayed N article(s)` を出力する。本番では同じ container image の command を `replay` に上書きした Cloud Run Job として実行できる。
+
+通常の再送・追いつき用途では `last_applied_seq` が進む projection だけを更新するため、繰り返し実行できる。完全再構築では migration 適用済みの空の Postgres database を対象にする。command 自体は `articles` table の削除や `TRUNCATE` を行わないため、既存 database を初期化する場合は backup と切り戻し手順を別途用意してから実施する。
+
 ## Development
 
 リポジトリルートで Rust 用 dev shell に入り、テストを実行する。
