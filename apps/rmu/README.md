@@ -14,7 +14,7 @@ API の Scala domain とはコード共有せず、event wire schema と project
 
 - `PORT`: HTTP listen port（未指定時 `8080`。Cloud Run が設定する値を使用）
 
-Firestore は Application Default Credentials と `FIRESTORE_EMULATOR_HOST` を含む Google Cloud SDK 標準設定を利用する。`SIGINT` を受けると処理中の HTTP request を待ってから終了する。
+Firestore は Application Default Credentials と `FIRESTORE_EMULATOR_HOST` を含む Google Cloud SDK 標準設定を利用する。`SIGINT` または `SIGTERM` を受けると処理中の HTTP request を待ってから終了する。
 
 ## Local startup
 
