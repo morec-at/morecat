@@ -1,4 +1,6 @@
-use std::{collections::HashMap, ffi::OsString, fmt, future::Future, pin::Pin, sync::Arc};
+use std::{
+    collections::HashMap, ffi::OsString, fmt, future::Future, io::Write, pin::Pin, sync::Arc,
+};
 
 use axum::Router;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
@@ -89,14 +91,29 @@ pub async fn run(
     let listener = TcpListener::bind(("0.0.0.0", port))
         .await
         .map_err(listener_error)?;
+    let address = listener
+        .local_addr()
+        .expect("bound RMU listener must have a local address");
+    let mut stdout = std::io::stdout().lock();
+    writeln!(stdout, "RMU listening on {address}").expect("failed to write RMU readiness");
+    stdout.flush().expect("failed to flush RMU readiness");
+    drop(stdout);
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown)
         .await
         .map_err(server_error)
 }
 
-fn listener_error(_error: std::io::Error) -> String {
-    "failed to bind RMU listener".to_owned()
+fn listener_error(error: std::io::Error) -> String {
+    match error.kind() {
+        std::io::ErrorKind::AddrInUse => {
+            "failed to bind RMU listener: address already in use".to_owned()
+        }
+        std::io::ErrorKind::PermissionDenied => {
+            "failed to bind RMU listener: permission denied".to_owned()
+        }
+        _ => "failed to bind RMU listener".to_owned(),
+    }
 }
 
 fn server_error(_error: std::io::Error) -> String {
@@ -214,7 +231,15 @@ mod tests {
     }
 
     #[test]
-    fn redacts_listener_and_server_error_details() {
+    fn identifies_safe_listener_error_kinds_and_redacts_other_details() {
+        assert_eq!(
+            listener_error(std::io::ErrorKind::AddrInUse.into()),
+            "failed to bind RMU listener: address already in use"
+        );
+        assert_eq!(
+            listener_error(std::io::ErrorKind::PermissionDenied.into()),
+            "failed to bind RMU listener: permission denied"
+        );
         assert_eq!(
             listener_error(std::io::Error::other("listener secret")),
             "failed to bind RMU listener"
@@ -379,7 +404,10 @@ mod integration_tests {
             Box::pin(std::future::ready(())),
         )
         .await;
-        assert_eq!(bind_error, Err("failed to bind RMU listener".to_owned()));
+        assert_eq!(
+            bind_error,
+            Err("failed to bind RMU listener: address already in use".to_owned())
+        );
     }
 
     async fn seed_draft_event() {
