@@ -7,6 +7,7 @@ use crate::{
     eventarc::{AcceptedEvent, DeadLetter, EventActions, ProcessingError},
     firestore_stream::{FirestoreEventDocuments, FirestoreEventStreamReader, StreamReadError},
     projection::{ArticleProjection, StoredArticleEvent, project_article},
+    replay::ArticleProjector,
 };
 
 #[async_trait]
@@ -52,14 +53,13 @@ impl<S, P, D> RmuEventActions<S, P, D> {
 }
 
 #[async_trait]
-impl<S, P, D> EventActions for RmuEventActions<S, P, D>
+impl<S, P, D> ArticleProjector for RmuEventActions<S, P, D>
 where
     S: ArticleEventStream,
     P: ArticleProjectionStore,
     D: DeadLetterStore,
 {
-    async fn process(&self, event: AcceptedEvent) -> Result<(), ProcessingError> {
-        let article_id = event.document.article_id;
+    async fn project(&self, article_id: Uuid) -> Result<(), ProcessingError> {
         let events = self
             .stream
             .load(article_id)
@@ -77,6 +77,18 @@ where
             .map_err(|error| {
                 ProcessingError::Transient(format!("projection upsert failed: {error}"))
             })
+    }
+}
+
+#[async_trait]
+impl<S, P, D> EventActions for RmuEventActions<S, P, D>
+where
+    S: ArticleEventStream,
+    P: ArticleProjectionStore,
+    D: DeadLetterStore,
+{
+    async fn process(&self, event: AcceptedEvent) -> Result<(), ProcessingError> {
+        self.project(event.document.article_id).await
     }
 
     async fn record_dead_letter(&self, dead_letter: DeadLetter) -> Result<(), String> {
@@ -174,7 +186,7 @@ mod tests {
             projections.clone(),
             Arc::new(RecordingDeadLetterStore::default()),
         );
-        let result = actions.process(accepted_event(article_id)).await;
+        let result = ArticleProjector::project(&actions, article_id).await;
 
         assert_eq!(result, Ok(()));
         assert_eq!(

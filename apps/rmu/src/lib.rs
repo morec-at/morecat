@@ -6,6 +6,7 @@ pub mod firestore_stream;
 pub mod postgres;
 pub mod processor;
 pub mod projection;
+pub mod replay;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventDocument {
