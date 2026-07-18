@@ -28,7 +28,7 @@
           pkgs.firebase-tools
           jdk
         ]; # apps/rmu
-        nodePkgs = [ pkgs.nodejs_22 ]; # apps/ui
+        nodePkgs = [ pkgs.nodejs_22 pkgs.pnpm ]; # apps/ui
 
         javaHook = ''export JAVA_HOME=${jdk}'';
         rustCoverageHook = ''
@@ -62,6 +62,11 @@
               ${javaHook}
               ${rustCoverageHook}
             '';
+          };
+
+          # CI/用途別: apps/ui (Node/pnpm) だけ
+          node = pkgs.mkShell {
+            packages = nodePkgs;
           };
         };
       });
