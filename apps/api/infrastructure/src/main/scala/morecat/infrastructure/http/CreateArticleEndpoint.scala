@@ -61,8 +61,16 @@ final class CreateArticleEndpoint(
       case CommandError.StoreUnavailable => StatusCode.ServiceUnavailable
 
 object CreateArticleEndpoint:
-  val endpoint = CommandSecurity.endpoint.post
+  val endpoint = CommandSecurity.input.post
     .in("articles")
     .in(jsonBody[CreateArticleRequest])
+    .errorOut(
+      statusCode
+        .description(StatusCode.BadRequest, "Invalid request")
+        .description(StatusCode.Unauthorized, "Unauthorized")
+        .description(StatusCode.Conflict, "Conflict")
+        .description(StatusCode.InternalServerError, "Internal server error")
+        .description(StatusCode.ServiceUnavailable, "Service unavailable")
+    )
     .out(statusCode(StatusCode.Created))
     .out(jsonBody[CreateArticleResponse])

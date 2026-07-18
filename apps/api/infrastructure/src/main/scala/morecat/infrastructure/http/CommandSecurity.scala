@@ -6,7 +6,8 @@ import sttp.tapir.ztapir.*
 import zio.*
 
 final class CommandSecurity(authenticator: Authenticator):
-  val endpoint = CommandSecurity.endpoint
+  val endpoint = CommandSecurity.input
+    .errorOut(CommandSecurity.errorOutput)
     .zServerSecurityLogic[Any, Unit](bearerToken =>
       authenticate(bearerToken).flatMap(ZIO.fromEither)
     )
@@ -18,6 +19,7 @@ final class CommandSecurity(authenticator: Authenticator):
       .catchAll(_ => ZIO.succeed(Left(StatusCode.Unauthorized)))
 
 object CommandSecurity:
-  val endpoint = sttp.tapir.ztapir.endpoint
+  val input = sttp.tapir.ztapir.endpoint
     .securityIn(auth.bearer[String]())
-    .errorOut(statusCode)
+
+  val errorOutput = statusCode.description(StatusCode.Unauthorized, "Unauthorized")

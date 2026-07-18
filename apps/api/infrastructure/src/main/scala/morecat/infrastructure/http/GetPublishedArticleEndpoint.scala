@@ -49,4 +49,9 @@ object GetPublishedArticleEndpoint:
   val endpoint = sttp.tapir.ztapir.endpoint.get
     .in("articles" / path[String]("slug"))
     .out(jsonBody[PublishedArticleResponse])
-    .errorOut(statusCode)
+    .errorOut(
+      statusCode
+        .description(StatusCode.BadRequest, "Invalid slug")
+        .description(StatusCode.NotFound, "Published article not found")
+        .description(StatusCode.ServiceUnavailable, "Service unavailable")
+    )
