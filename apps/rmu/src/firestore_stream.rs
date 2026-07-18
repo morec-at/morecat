@@ -4,11 +4,12 @@ use firestore::{FirestoreDb, FirestoreDbOptions, firestore_document_to_serializa
 use futures::TryStreamExt;
 use gcloud_sdk::{SecretValue, Source, Token, TokenSourceType};
 use serde::Deserialize;
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
-use crate::{parse_document_name, projection::StoredArticleEvent};
+use crate::{parse_document_name, projection::StoredArticleEvent, replay::ArticleCatalog};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FirestoreEventDocument {
@@ -30,6 +31,7 @@ pub trait FirestoreEventDocuments: Send + Sync {
     ) -> Result<Vec<FirestoreEventDocument>, StreamReadError>;
 }
 
+#[derive(Clone)]
 pub struct GoogleFirestoreEventDocuments {
     db: FirestoreDb,
 }
@@ -105,6 +107,16 @@ fn firestore_unavailable(error: FirestoreError) -> StreamReadError {
     StreamReadError::Unavailable(firestore_error_message(error))
 }
 
+fn article_ids_from_document_names(names: Vec<String>) -> Result<Vec<Uuid>, StreamReadError> {
+    let mut article_ids = BTreeSet::new();
+    for name in names {
+        let document = parse_document_name(&name)
+            .map_err(|_| StreamReadError::InvalidDocument(name.clone()))?;
+        article_ids.insert(document.article_id);
+    }
+    Ok(article_ids.into_iter().collect())
+}
+
 #[async_trait]
 impl FirestoreEventDocuments for GoogleFirestoreEventDocuments {
     async fn load_event_documents(
@@ -139,6 +151,28 @@ impl FirestoreEventDocuments for GoogleFirestoreEventDocuments {
                 })
             })
             .collect()
+    }
+}
+
+#[async_trait]
+impl ArticleCatalog for GoogleFirestoreEventDocuments {
+    async fn list_article_ids(&self) -> Result<Vec<Uuid>, StreamReadError> {
+        let stream = self
+            .db
+            .fluent()
+            .select()
+            .from("events")
+            .all_descendants()
+            .stream_query_with_errors()
+            .await
+            .map_err(firestore_unavailable)?;
+        let documents: Vec<_> = stream.try_collect().await.map_err(firestore_unavailable)?;
+        article_ids_from_document_names(
+            documents
+                .into_iter()
+                .map(|document| document.name)
+                .collect(),
+        )
     }
 }
 
@@ -236,6 +270,32 @@ mod tests {
                 "Data not found error occurred: Invalid parameters error: article_id. invalid"
                     .to_owned()
             )
+        );
+    }
+
+    #[test]
+    fn extracts_unique_article_ids_from_event_document_names() {
+        let first = Uuid::parse_str("018f4edc-1f5a-7c4b-aef9-000000000001").unwrap();
+        let second = Uuid::parse_str("018f4edc-1f5a-7c4b-aef9-000000000002").unwrap();
+        let name = |article_id: Uuid, seq: u64| {
+            format!(
+                "projects/demo-morecat/databases/(default)/documents/articles/{article_id}/events/{seq}"
+            )
+        };
+
+        let result =
+            article_ids_from_document_names(vec![name(second, 1), name(first, 2), name(first, 1)]);
+
+        assert_eq!(result, Ok(vec![first, second]));
+    }
+
+    #[test]
+    fn rejects_invalid_event_document_names_during_catalog_listing() {
+        let name = "projects/demo-morecat/databases/(default)/documents/slugs/hello".to_owned();
+
+        assert_eq!(
+            article_ids_from_document_names(vec![name.clone()]),
+            Err(StreamReadError::InvalidDocument(name))
         );
     }
 
@@ -365,6 +425,40 @@ mod tests {
                 document(article_id, 2, "published"),
             ]
         );
+    }
+
+    #[cfg(feature = "firestore-integration")]
+    #[tokio::test]
+    async fn lists_unique_article_ids_across_event_subcollections() {
+        let first = Uuid::parse_str("018f4edc-1f5a-7c4b-aef9-000000000013").unwrap();
+        let second = Uuid::parse_str("018f4edc-1f5a-7c4b-aef9-000000000014").unwrap();
+        let documents = GoogleFirestoreEventDocuments::new("demo-morecat")
+            .await
+            .unwrap();
+        for (article_id, seq) in [(first, "1"), (first, "2"), (second, "1")] {
+            let parent = documents
+                .db
+                .parent_path("articles", article_id.to_string())
+                .unwrap();
+            documents
+                .db
+                .fluent()
+                .insert()
+                .into("events")
+                .document_id(seq)
+                .parent(&parent)
+                .object(&SeedEventFields {
+                    json: "event".to_owned(),
+                })
+                .execute::<SeedEventFields>()
+                .await
+                .unwrap();
+        }
+
+        let result = documents.list_article_ids().await.unwrap();
+
+        assert_eq!(result.iter().filter(|id| **id == first).count(), 1);
+        assert_eq!(result.iter().filter(|id| **id == second).count(), 1);
     }
 
     #[cfg(feature = "firestore-integration")]
