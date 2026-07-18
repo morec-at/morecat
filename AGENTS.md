@@ -61,6 +61,7 @@
 - レビュー観点: `docs/design.md`・`docs/slice-1-plan.md` との整合 / 正しさ / セキュリティ / スコープ逸脱。
 - 必要な設定: リポジトリ Secret **`OPENAI_API_KEY`**（未設定だと CI は失敗する＝レビューを黙ってスキップしない）。
 - ジョブは review（`contents:read` で codex 実行）と post（`pull-requests:write` でコメント投稿）に分離し、codex 実行中は PR 書込権限を渡さない。
+- レビュー本文は GitHub の secret scanner による job output の誤検知を避けるため、短期保持の artifact で review から post へ渡す。artifact が欠損・空の場合は post を失敗させ、レビュー投稿を黙ってスキップしない。
 
 ### PR 後の bot レビュー triage（エージェント運用ルール）
 - **PR を作成したら、bot の自動レビュー（codex sticky / `chatgpt-codex-connector` 等）が出揃うまで待ち、内容を確認・評価するところまで自動で行う。** 手順は `$triage-pr-reviews`（`.agents/skills/triage-pr-reviews/SKILL.md`）に集約。
