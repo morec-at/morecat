@@ -35,11 +35,10 @@ final class CreateArticleEndpoint(
   idGenerator: ArticleIdGenerator,
   createDraft: CreateDraftCommand => IO[CommandError, Unit],
 ):
-  val endpoint = security.endpoint.post
-    .in("articles")
-    .in(jsonBody[CreateArticleRequest])
-    .out(statusCode(StatusCode.Created))
-    .out(jsonBody[CreateArticleResponse])
+  val endpoint = CreateArticleEndpoint.endpoint
+    .zServerSecurityLogic[Any, Unit](bearerToken =>
+      security.authenticate(bearerToken).flatMap(ZIO.fromEither)
+    )
     .serverLogic[Any](_ => request => create(request).flatMap(ZIO.fromEither))
 
   def create(request: CreateArticleRequest): UIO[Either[StatusCode, CreateArticleResponse]] =
@@ -60,3 +59,10 @@ final class CreateArticleEndpoint(
       case CommandError.ArticleNotFound  => StatusCode.NotFound
       case CommandError.StoreFailure     => StatusCode.InternalServerError
       case CommandError.StoreUnavailable => StatusCode.ServiceUnavailable
+
+object CreateArticleEndpoint:
+  val endpoint = CommandSecurity.endpoint.post
+    .in("articles")
+    .in(jsonBody[CreateArticleRequest])
+    .out(statusCode(StatusCode.Created))
+    .out(jsonBody[CreateArticleResponse])

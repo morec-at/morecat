@@ -1,0 +1,135 @@
+openapi: 3.1.0
+info:
+  title: morecat API
+  version: 1.0.0
+paths:
+  /articles:
+    post:
+      operationId: postArticles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateArticleRequest'
+        required: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateArticleResponse'
+        '400':
+          description: 'Invalid value for: body'
+          content:
+            text/plain:
+              schema:
+                type: string
+        default:
+          description: ''
+      security:
+      - httpAuth: []
+  /articles/{articleId}/publish:
+    post:
+      operationId: postArticlesArticleidPublish
+      parameters:
+      - name: articleId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishArticleRequest'
+        required: true
+      responses:
+        '204':
+          description: ''
+        '400':
+          description: 'Invalid value for: body'
+          content:
+            text/plain:
+              schema:
+                type: string
+        default:
+          description: ''
+      security:
+      - httpAuth: []
+  /articles/{slug}:
+    get:
+      operationId: getArticlesSlug
+      parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishedArticleResponse'
+        default:
+          description: ''
+components:
+  schemas:
+    CreateArticleRequest:
+      title: CreateArticleRequest
+      type: object
+      required:
+      - slug
+      - title
+      - body
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+    CreateArticleResponse:
+      title: CreateArticleResponse
+      type: object
+      required:
+      - articleId
+      properties:
+        articleId:
+          type: string
+    PublishArticleRequest:
+      title: PublishArticleRequest
+      type: object
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion:
+          type: integer
+          format: int64
+    PublishedArticleResponse:
+      title: PublishedArticleResponse
+      type: object
+      required:
+      - articleId
+      - slug
+      - title
+      - body
+      - publishedAt
+      properties:
+        articleId:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        publishedAt:
+          type: integer
+          format: int64
+  securitySchemes:
+    httpAuth:
+      type: http
+      scheme: bearer

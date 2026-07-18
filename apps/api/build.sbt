@@ -6,6 +6,7 @@ val zioVersion  = "2.1.26"
 val ironVersion = "3.3.1"
 val zioJsonVersion = "0.9.0"
 val tapirVersion = "1.13.27"
+val sttpApispecVersion = "0.11.10"
 val javaUuidGeneratorVersion = "5.2.0"
 val googleCloudFirestoreVersion = "3.43.1"
 val magnumVersion = "2.0.0-M3"
@@ -81,6 +82,8 @@ lazy val infrastructure = project
       "dev.zio" %% "zio-json"     % zioJsonVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-json-zio" % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs" % tapirVersion,
+      "com.softwaremill.sttp.apispec" %% "openapi-circe-yaml" % sttpApispecVersion,
       "com.fasterxml.uuid" % "java-uuid-generator" % javaUuidGeneratorVersion,
       "com.google.cloud" % "google-cloud-firestore" % googleCloudFirestoreVersion,
       "com.augustnagro" %% "magnumzio" % magnumVersion,
