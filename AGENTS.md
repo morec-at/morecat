@@ -56,6 +56,7 @@
 
 ## 自動レビュー（codex）
 - `api (Scala) format, compile & test` は required check のため、変更 path にかかわらず全 PR で実行する（未生成の expected check による merge block を避ける）。
+- `ui (pnpm generate, test & typecheck)` は生成済み OpenAPI 型の差分、UI テスト、TypeScript 型検査を全 PR で確認する。
 - 全 PR は `.github/workflows/codex-review.yml`（公式 `openai/codex-action`）で **codex の自動レビューが必須実行**され、結果が PR にスティッキーコメントとして残る。
 - レビュー観点: `docs/design.md`・`docs/slice-1-plan.md` との整合 / 正しさ / セキュリティ / スコープ逸脱。
 - 必要な設定: リポジトリ Secret **`OPENAI_API_KEY`**（未設定だと CI は失敗する＝レビューを黙ってスキップしない）。
