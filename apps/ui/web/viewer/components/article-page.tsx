@@ -4,7 +4,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 
-import { articleSanitizeSchema } from './markdown';
+import { articleSanitizeSchema } from '../lib/markdown';
 
 export type PublishedArticle = NonNullable<
   paths['/articles/{slug}']['get']['responses'][200]['content']['application/json']

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 
-import { ArticlePage } from '../article-page';
+import { ArticlePage } from '../components/article-page';
 
 describe('ArticlePage', () => {
   test('renders a published article returned by the generated API contract', () => {

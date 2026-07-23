@@ -1,6 +1,6 @@
 import { createApiClient } from '@morecat/api-client';
 
-import type { PublishedArticle } from './article-page';
+import type { PublishedArticle } from '../components/article-page';
 
 export interface PublishedArticleLoaderOptions {
   apiBaseUrl?: string;

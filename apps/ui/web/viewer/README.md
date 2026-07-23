@@ -22,3 +22,5 @@ pnpm --filter @morecat/viewer build
 `/posts/{slug}` is forced dynamic and its API request uses `cache: 'no-store'`. Slice 1 intentionally performs a live read on every request; ISR and RMU-triggered revalidation remain a later change.
 
 `test` and `test:coverage` measure only viewer application code and enforce 100% line, branch, function, and statement coverage. The HTML report is written to `coverage/`, so the existing workspace test command and CI also enforce the threshold.
+
+Route files live in `app/`, reusable UI in `components/`, and API/Markdown integration code in `lib/`.

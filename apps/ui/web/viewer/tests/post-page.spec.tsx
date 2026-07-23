@@ -10,7 +10,7 @@ const { notFound } = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ notFound }));
 
 import PostPage from '../app/posts/[slug]/page';
-import { PublishedArticleUpstreamError } from '../published-article';
+import { PublishedArticleUpstreamError } from '../lib/published-article';
 
 describe('/posts/{slug}', () => {
   afterEach(() => {

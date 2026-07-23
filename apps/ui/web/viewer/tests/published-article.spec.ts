@@ -5,7 +5,7 @@ import {
   PublishedArticleNotFoundError,
   PublishedArticleUpstreamError,
   ViewerConfigurationError,
-} from '../published-article';
+} from '../lib/published-article';
 
 describe('loadPublishedArticle', () => {
   test('loads an article through the generated client without caching it', async () => {

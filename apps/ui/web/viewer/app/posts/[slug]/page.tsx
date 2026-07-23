@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
 
-import { ArticlePage } from '../../../article-page';
+import { ArticlePage } from '../../../components/article-page';
 import {
   loadPublishedArticle,
   PublishedArticleNotFoundError,
-} from '../../../published-article';
+} from '../../../lib/published-article';
 
 export const dynamic = 'force-dynamic';
 
