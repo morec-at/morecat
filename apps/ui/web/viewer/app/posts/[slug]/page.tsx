@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { ArticlePage } from '../../../components/article-page';
 import {
   loadPublishedArticle,
+  PublishedArticleInvalidSlugError,
   PublishedArticleNotFoundError,
 } from '../../../lib/published-article';
 
@@ -12,7 +13,10 @@ async function loadArticleOrNotFound(slug: string) {
   try {
     return await loadPublishedArticle(slug);
   } catch (error) {
-    if (error instanceof PublishedArticleNotFoundError) {
+    if (
+      error instanceof PublishedArticleInvalidSlugError ||
+      error instanceof PublishedArticleNotFoundError
+    ) {
       notFound();
     }
     throw error;

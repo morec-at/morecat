@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { createApiClient } from '@morecat/api-client';
 
 import type { PublishedArticle } from '../components/article-page';
@@ -5,6 +7,13 @@ import type { PublishedArticle } from '../components/article-page';
 export interface PublishedArticleLoaderOptions {
   apiBaseUrl?: string;
   fetch?: typeof globalThis.fetch;
+}
+
+export class PublishedArticleInvalidSlugError extends Error {
+  constructor(slug: string) {
+    super(`Invalid article slug: ${slug}`);
+    this.name = 'PublishedArticleInvalidSlugError';
+  }
 }
 
 export class PublishedArticleNotFoundError extends Error {
@@ -45,7 +54,10 @@ export async function loadPublishedArticle(
     params: { path: { slug } },
   });
 
-  if (result.response.status === 400 || result.response.status === 404) {
+  if (result.response.status === 400) {
+    throw new PublishedArticleInvalidSlugError(slug);
+  }
+  if (result.response.status === 404) {
     throw new PublishedArticleNotFoundError(slug);
   }
   if (!result.data) {

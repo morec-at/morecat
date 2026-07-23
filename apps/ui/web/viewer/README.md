@@ -24,3 +24,5 @@ pnpm --filter @morecat/viewer build
 `test` and `test:coverage` measure only viewer application code and enforce 100% line, branch, function, and statement coverage. The HTML report is written to `coverage/`, so the existing workspace test command and CI also enforce the threshold.
 
 Route files live in `app/`, reusable UI in `components/`, and API/Markdown integration code in `lib/`.
+
+Raw Markdown HTML is sanitized. Iframes are rendered only for HTTPS YouTube embeds from `www.youtube.com/embed/*` or `www.youtube-nocookie.com/embed/*`; all other iframe sources are dropped.

@@ -67,4 +67,29 @@ describe('ArticlePage', () => {
       'href',
     );
   });
+
+  test('renders only trusted YouTube embed iframes', () => {
+    render(
+      <ArticlePage
+        article={{
+          articleId: '018f4edc-1f5a-7c4b-aef9-000000000001',
+          slug: 'trusted-embeds',
+          title: 'Trusted embeds',
+          body: [
+            '<iframe title="trusted" src="https://www.youtube-nocookie.com/embed/abc_123"></iframe>',
+            '<iframe title="untrusted" src="https://evil.example/embed/abc_123"></iframe>',
+            '<iframe title="missing-source"></iframe>',
+          ].join('\n'),
+          publishedAt: 1_720_000_000_000,
+        }}
+      />,
+    );
+
+    expect(screen.getByTitle('trusted')).toHaveAttribute(
+      'src',
+      'https://www.youtube-nocookie.com/embed/abc_123',
+    );
+    expect(screen.queryByTitle('untrusted')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('missing-source')).not.toBeInTheDocument();
+  });
 });

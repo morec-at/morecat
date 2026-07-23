@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import {
   loadPublishedArticle,
+  PublishedArticleInvalidSlugError,
   PublishedArticleNotFoundError,
   PublishedArticleUpstreamError,
   ViewerConfigurationError,
@@ -54,7 +55,7 @@ describe('loadPublishedArticle', () => {
         apiBaseUrl: 'https://api.example.test',
         fetch: invalidSlugFetch,
       }),
-    ).rejects.toBeInstanceOf(PublishedArticleNotFoundError);
+    ).rejects.toBeInstanceOf(PublishedArticleInvalidSlugError);
     await expect(
       loadPublishedArticle('draft', {
         apiBaseUrl: 'https://api.example.test',
