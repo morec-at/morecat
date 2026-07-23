@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { createApiClient } from '../src/index.js';
+import { createApiClient } from '../src/index';
 
 describe('createApiClient', () => {
   test('creates an article with bearer authentication and a typed body', async () => {
