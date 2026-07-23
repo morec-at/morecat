@@ -19,20 +19,23 @@ describe('/posts/{slug}', () => {
     vi.clearAllMocks();
   });
 
-  test('turns an API 404 into the Next.js not-found boundary', async () => {
-    vi.stubEnv('MORECAT_API_BASE_URL', 'https://api.example.test');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn<typeof globalThis.fetch>(async () =>
-        Promise.resolve(new Response(null, { status: 404 })),
-      ),
-    );
+  test.each([400, 404])(
+    'turns an API %i into the Next.js not-found boundary',
+    async (status) => {
+      vi.stubEnv('MORECAT_API_BASE_URL', 'https://api.example.test');
+      vi.stubGlobal(
+        'fetch',
+        vi.fn<typeof globalThis.fetch>(async () =>
+          Promise.resolve(new Response(null, { status })),
+        ),
+      );
 
-    await expect(
-      PostPage({ params: Promise.resolve({ slug: 'draft' }) }),
-    ).rejects.toThrow('NEXT_NOT_FOUND');
-    expect(notFound).toHaveBeenCalledOnce();
-  });
+      await expect(
+        PostPage({ params: Promise.resolve({ slug: 'draft' }) }),
+      ).rejects.toThrow('NEXT_NOT_FOUND');
+      expect(notFound).toHaveBeenCalledOnce();
+    },
+  );
 
   test('renders the live API response', async () => {
     vi.stubEnv('MORECAT_API_BASE_URL', 'https://api.example.test');

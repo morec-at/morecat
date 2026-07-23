@@ -41,12 +41,20 @@ describe('loadPublishedArticle', () => {
     expect((request as Request).cache).toBe('no-store');
   });
 
-  test('distinguishes an unpublished or missing article from an upstream failure', async () => {
+  test('distinguishes a non-public route from an upstream failure', async () => {
+    const invalidSlugFetch: typeof globalThis.fetch = async () =>
+      new Response(null, { status: 400 });
     const notFoundFetch: typeof globalThis.fetch = async () =>
       new Response(null, { status: 404 });
     const failedFetch: typeof globalThis.fetch = async () =>
       new Response(null, { status: 503 });
 
+    await expect(
+      loadPublishedArticle('Invalid Slug', {
+        apiBaseUrl: 'https://api.example.test',
+        fetch: invalidSlugFetch,
+      }),
+    ).rejects.toBeInstanceOf(PublishedArticleNotFoundError);
     await expect(
       loadPublishedArticle('draft', {
         apiBaseUrl: 'https://api.example.test',

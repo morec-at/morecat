@@ -45,7 +45,7 @@ export async function loadPublishedArticle(
     params: { path: { slug } },
   });
 
-  if (result.response.status === 404) {
+  if (result.response.status === 400 || result.response.status === 404) {
     throw new PublishedArticleNotFoundError(slug);
   }
   if (!result.data) {
