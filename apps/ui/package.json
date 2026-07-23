@@ -1,0 +1,11 @@
+{
+  "name": "morecat-ui",
+  "private": true,
+  "packageManager": "pnpm@11.11.0",
+  "scripts": {
+    "gen:openapi": "cd ../api && sbt -batch -no-colors 'infrastructure/runMain morecat.infrastructure.http.GenerateOpenApi ../ui/openapi.yaml'",
+    "gen:api": "pnpm gen:openapi && pnpm --filter @morecat/api-client generate",
+    "test": "pnpm --recursive test",
+    "typecheck": "pnpm --recursive typecheck"
+  }
+}

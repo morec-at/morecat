@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - 'apps/api/**'
+      - 'apps/ui/**'
       - 'flake.nix'
       - 'flake.lock'
       - '.github/workflows/ci.yml'
@@ -60,3 +61,23 @@ jobs:
           path: apps/api/target/scala-*/scoverage-report/**
           if-no-files-found: error
           retention-days: 14
+
+  ui:
+    name: ui (pnpm generate, test & typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@fd3eb131b9b46cc1dd978a7c0ba3fce79dd7d3eb # v3.9.1
+
+      - name: Install dependencies (apps/ui)
+        run: |
+          nix develop .#node --command bash -c 'cd apps/ui && pnpm install --frozen-lockfile'
+
+      - name: Generate check, test & typecheck (apps/ui)
+        run: |
+          nix develop .#node --command bash -c 'cd apps/ui && pnpm --filter @morecat/api-client generate && git diff --exit-code openapi.yaml packages/api-client/src/schema.ts && pnpm test && pnpm typecheck'

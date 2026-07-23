@@ -21,10 +21,7 @@ final case class PublishedArticleResponse(
 final class GetPublishedArticleEndpoint(
   getBySlug: String => IO[PublishedArticleError, PublishedArticle]
 ):
-  val endpoint = sttp.tapir.ztapir.endpoint.get
-    .in("articles" / path[String]("slug"))
-    .out(jsonBody[PublishedArticleResponse])
-    .errorOut(statusCode)
+  val endpoint = GetPublishedArticleEndpoint.endpoint
     .zServerLogic[Any](rawSlug => execute(rawSlug).flatMap(ZIO.fromEither))
 
   def execute(rawSlug: String): UIO[Either[StatusCode, PublishedArticleResponse]] =
@@ -46,4 +43,15 @@ final class GetPublishedArticleEndpoint(
       title = article.title,
       body = article.body,
       publishedAt = article.publishedAt,
+    )
+
+object GetPublishedArticleEndpoint:
+  val endpoint = sttp.tapir.ztapir.endpoint.get
+    .in("articles" / path[String]("slug"))
+    .out(jsonBody[PublishedArticleResponse])
+    .errorOut(
+      statusCode
+        .description(StatusCode.BadRequest, "Invalid slug")
+        .description(StatusCode.NotFound, "Published article not found")
+        .description(StatusCode.ServiceUnavailable, "Service unavailable")
     )

@@ -30,10 +30,10 @@ final class PublishArticleEndpoint(
   security: CommandSecurity,
   publish: PublishArticleCommand => IO[CommandError, PublishResult],
 ):
-  val endpoint = security.endpoint.post
-    .in("articles" / path[String]("articleId") / "publish")
-    .in(jsonBody[PublishArticleRequest])
-    .out(statusCode(StatusCode.NoContent))
+  val endpoint = PublishArticleEndpoint.endpoint
+    .zServerSecurityLogic[Any, Unit](bearerToken =>
+      security.authenticate(bearerToken).flatMap(ZIO.fromEither)
+    )
     .serverLogic[Any](_ => input => execute(input._1, input._2).flatMap(ZIO.fromEither))
 
   def execute(
@@ -61,3 +61,18 @@ final class PublishArticleEndpoint(
       case CommandError.ArticleNotFound  => StatusCode.NotFound
       case CommandError.StoreFailure     => StatusCode.InternalServerError
       case CommandError.StoreUnavailable => StatusCode.ServiceUnavailable
+
+object PublishArticleEndpoint:
+  val endpoint = CommandSecurity.input.post
+    .in("articles" / path[String]("articleId") / "publish")
+    .in(jsonBody[PublishArticleRequest])
+    .errorOut(
+      statusCode
+        .description(StatusCode.BadRequest, "Invalid request")
+        .description(StatusCode.Unauthorized, "Unauthorized")
+        .description(StatusCode.NotFound, "Article not found")
+        .description(StatusCode.Conflict, "Conflict")
+        .description(StatusCode.InternalServerError, "Internal server error")
+        .description(StatusCode.ServiceUnavailable, "Service unavailable")
+    )
+    .out(statusCode(StatusCode.NoContent))
