@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "start": "next start",
     "test": "vitest run --coverage",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",

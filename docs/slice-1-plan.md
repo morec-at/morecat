@@ -62,13 +62,13 @@ ES + CQRS + 4 デプロイ単位（api / rmu / viewer / editor。domain は Rust
 
 本スライスは実装量が大きいため、**2つのマイルストーンに分割**する（codex 指摘）。**マイルストーン A（タスク 1〜5）でローカル End-to-End 貫通**、**マイルストーン B（タスク 6）で本番デプロイ**。A 完了を中間ゲートとし、A が緑になってから B に進む。
 
-### マイルストーン A — ローカル End-to-End 貫通
+### マイルストーン A — ローカル End-to-End 貫通 ✅ 達成
 
 1. **`apps/api/domain`（JVM 純粋サブプロジェクト）** ✅ 実装済み
    - `ArticleDrafted` / `ArticlePublished`（`schemaVersion` は各イベント型固定の現行版定数）、`Slug` / `Title`（Iron + smart constructor）、`ArticleId`（表現非依存の不透明 ID。UUIDv7 の採番・形式検証は infrastructure の責務）。**書き込み側の語彙のみ**（投影 fold は RMU=Rust、JSON codec・schemaVersion アップキャストは infrastructure の decode 境界、いずれもタスク2以降）
    - *DoD*: zio-test（プロパティベース）で VO 不変条件・`ArticleId` の round-trip が緑。**ライブラリ組み合わせ（Scala 3.8.4 / Iron 3.3.1 等）の解決・コンパイル確認** → 達成（4 件緑）
 
-2. **`apps/api`（JVM, Cloud Run）**
+2. **`apps/api`（JVM, Cloud Run）** ✅ 実装済み
    - Firestore append（doc id = seq の create-only 楽観ロック）＋ `slugs/{slug}` 予約を**同一 Tx**／publish コマンド／`Authenticator` port + Bearer middleware／`GET /articles/{slug}`（Magnum + magnum-zio、published のみ）／入力検証／tapir + zio-http → OpenAPI
    - *DoD*:
      - エミュレータで draft 作成 → 公開 → Firestore に append。トークン無し/不正 = 401
@@ -77,7 +77,7 @@ ES + CQRS + 4 デプロイ単位（api / rmu / viewer / editor。domain は Rust
      - **publish 不変条件テスト**: 未作成 id は 404／既公開への再 publish は冪等成功（200/204・新イベントが増えない）／期待バージョン不一致は失敗／`publishedAt` がサーバ時刻で採番される
      - 入力検証（サイズ上限・未知フィールド・危険な slug 文字）の拒否テスト
 
-3. **`apps/rmu`（**Rust**, Cloud Run）**
+3. **`apps/rmu`（**Rust**, Cloud Run）** ✅ 実装済み
    - axum で Eventarc(CloudEvent) 受信 → 全ストリーム再読込 fold（Rust 再実装）→ Postgres upsert（`lastAppliedSeq` で skip）。Firestore は `firestore`/`gcloud-sdk`、Postgres は `sqlx`。**イベント wire スキーマは契約フィクスチャで Scala と整合**。**payload 検証**（`articleId` 形式・対象パス `articles/{id}/events/{seq}`・`slugs/*` 拒否）。**ACK/NACK 方針**: 恒久エラー=2xx ACK+自前 dead-letter 記録／一過性失敗=5xx NACK→リトライ→DLQ。手動 replay
    - *DoD*:
      - `articleId` POST で Postgres に upsert。冪等（再送で重複しない）
@@ -85,14 +85,15 @@ ES + CQRS + 4 デプロイ単位（api / rmu / viewer / editor。domain は Rust
      - 一過性失敗（upsert エラー等）は **5xx を返し再送/DLQ に乗る**ことをテスト
      - 手動 replay（全 Firestore イベント → Postgres 再構築）の最小手順が動く
 
-4. **`packages/api-client`（最小 OpenAPI 生成）**
+4. **`packages/api-client`（最小 OpenAPI 生成）** ✅ 実装済み
    - API の OpenAPI から `POST /articles`・publish・`GET /articles/{slug}` の型 / クライアントを生成
    - *DoD*: viewer から生成クライアント経由で型安全に呼べる
 
-5. **viewer + ローカル貫通**
+5. **viewer + ローカル貫通** ✅ 実装済み
    - viewer `/posts/{slug}`: SSR で api-client 経由取得 → Markdown(GFM) を **`rehype-sanitize`（拡張 allowlist）で sanitization** して HTML 化（published のみ）
    - CDC ブリッジ（emulator listener → RMU）で `POST /articles` → publish → Firestore → RMU → Postgres → `GET /articles/{slug}` → viewer `/posts/{slug}` SSR 表示
    - *DoD*: ローカルで 1〜5 が一気通貫。**悪意ある Markdown（`<script>`・`onerror` 等）が sanitize され描画されないテスト**
+   - 自動疎通: `nix develop --command ./apps/e2e/local-e2e.sh`（一時 Postgres + Firestore emulator + API + CDC bridge + viewer を起動し、公開 HTTP 境界から検証）。`.github/workflows/e2e.yml` で全 PR に対して同じ経路を実行する
 
 > **中間ゲート**: ここでマイルストーン A 完了。ローカルで End-to-End が緑になってから B（本番デプロイ）へ進む。
 

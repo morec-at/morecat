@@ -30,3 +30,6 @@ result-*
 /apps/api/firebase-debug.log
 /apps/api/firestore-debug.log
 /apps/api/ui-debug.log
+
+# Local/CI test artifacts
+/.artifacts/
