@@ -5,6 +5,8 @@
 `local-e2e.sh` は一時 Postgres container、Firestore emulator、API、RMU の CDC bridge、viewer を起動し、次の仕様を確認する。
 
 - draft 作成直後の公開 GET は `404`
+- Bearer token が未指定または不正な command は `401`
+- 予約済み slug による draft 作成は `409`
 - publish 後は CDC bridge が Postgres projection を更新し、公開 GET は `200`
 - viewer の `/posts/{slug}` は記事を SSR し、危険な Markdown を除去する
 

@@ -68,5 +68,5 @@ jobs:
         with:
           name: local-e2e-failure-logs
           path: .artifacts/local-e2e/**
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14

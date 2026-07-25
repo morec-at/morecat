@@ -258,6 +258,20 @@ cat >"$work_dir/create.json" <<'JSON'
 JSON
 sed -i.bak "s/SLUG_PLACEHOLDER/$slug/" "$work_dir/create.json"
 
+log 'rejecting unauthenticated commands'
+missing_token_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  --request POST "http://127.0.0.1:${api_port}/articles" \
+  --header 'Content-Type: application/json' \
+  --data-binary "@$work_dir/create.json")"
+assert_status '401' "$missing_token_status" 'missing bearer token'
+
+invalid_token_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  --request POST "http://127.0.0.1:${api_port}/articles" \
+  --header 'Authorization: Bearer invalid-token' \
+  --header 'Content-Type: application/json' \
+  --data-binary "@$work_dir/create.json")"
+assert_status '401' "$invalid_token_status" 'invalid bearer token'
+
 log 'creating draft through API'
 create_status="$(curl --silent --output "$work_dir/create-response.json" --write-out '%{http_code}' \
   --request POST "http://127.0.0.1:${api_port}/articles" \
@@ -270,6 +284,14 @@ if [[ -z "$article_id" ]]; then
   printf 'create draft response did not contain articleId\n' >&2
   exit 1
 fi
+
+log 'rejecting a conflicting slug'
+slug_conflict_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  --request POST "http://127.0.0.1:${api_port}/articles" \
+  --header "Authorization: Bearer ${bearer_token}" \
+  --header 'Content-Type: application/json' \
+  --data-binary "@$work_dir/create.json")"
+assert_status '409' "$slug_conflict_status" 'slug reservation conflict'
 
 draft_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
   "http://127.0.0.1:${api_port}/articles/${slug}")"
