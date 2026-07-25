@@ -8,12 +8,9 @@ on:
       - 'flake.nix'
       - 'flake.lock'
       - '.github/workflows/rmu-ci.yml'
-  pull_request:
-    paths:
-      - 'apps/rmu/**'
-      - 'flake.nix'
-      - 'flake.lock'
-      - '.github/workflows/rmu-ci.yml'
+  # Repository rulesets require this check on every PR. Always create the
+  # check so an unmatched path filter cannot leave the PR permanently blocked.
+  pull_request: {}
 
 concurrency:
   group: rmu-ci-${{ github.workflow }}-${{ github.ref }}
