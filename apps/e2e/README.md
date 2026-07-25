@@ -7,6 +7,8 @@
 - draft 作成直後の公開 GET は `404`
 - Bearer token が未指定または不正な command は `401`
 - 予約済み slug による draft 作成は `409`
+- 未作成 article の publish は `404`、期待 version 不一致は `409`
+- viewer は不在または draft の記事を `404` にする
 - publish 後は CDC bridge が Postgres projection を更新し、公開 GET は `200`
 - viewer の `/posts/{slug}` は記事を SSR し、危険な Markdown を除去する
 

@@ -135,6 +135,27 @@ wait_for_http() {
   return 1
 }
 
+wait_for_log() {
+  local file=$1
+  local expected=$2
+  local process_id=$3
+  local attempts=${4:-120}
+
+  for ((attempt = 1; attempt <= attempts; attempt += 1)); do
+    if grep --fixed-strings --quiet "$expected" "$file"; then
+      return 0
+    fi
+    if ! kill -0 "$process_id" 2>/dev/null; then
+      printf 'process exited before logging %s\n' "$expected" >&2
+      return 1
+    fi
+    sleep 1
+  done
+
+  printf 'timed out waiting for process to log %s\n' "$expected" >&2
+  return 1
+}
+
 assert_status() {
   local expected=$1
   local actual=$2
@@ -206,7 +227,7 @@ start_process_in_directory firestore "$work_dir" firebase emulators:start \
   --only firestore \
   --project "$firestore_project"
 firestore_pid=$last_process_id
-wait_for_http 'http://127.0.0.1:8080/' '200' 120 "$firestore_pid"
+wait_for_log "$work_dir/firestore.log" 'All emulators ready!' "$firestore_pid"
 
 log 'building RMU'
 cargo build --manifest-path "$repo_root/apps/rmu/Cargo.toml" --locked
@@ -218,21 +239,11 @@ start_process bridge env \
   DATABASE_URL="postgres://postgres:postgres@127.0.0.1:${postgres_port}/postgres" \
   "$repo_root/apps/rmu/target/debug/morecat-rmu" bridge
 bridge_pid=$last_process_id
-
-for ((attempt = 1; attempt <= 60; attempt += 1)); do
-  if grep --fixed-strings --quiet 'Local CDC bridge listening for article events' "$work_dir/bridge.log"; then
-    break
-  fi
-  if ! kill -0 "$bridge_pid" 2>/dev/null; then
-    printf 'CDC bridge exited before becoming ready\n' >&2
-    exit 1
-  fi
-  if (( attempt == 60 )); then
-    printf 'CDC bridge did not become ready\n' >&2
-    exit 1
-  fi
-  sleep 1
-done
+wait_for_log \
+  "$work_dir/bridge.log" \
+  'Local CDC bridge listening for article events' \
+  "$bridge_pid" \
+  60
 
 log 'starting API'
 start_process_in_directory api "$repo_root/apps/api" env \
@@ -247,6 +258,22 @@ start_process_in_directory api "$repo_root/apps/api" env \
   "project bootstrap" run
 api_pid=$last_process_id
 wait_for_http "http://127.0.0.1:${api_port}/articles/not-yet-published" '404' 240 "$api_pid"
+
+log 'building viewer'
+MORECAT_API_BASE_URL="http://127.0.0.1:${api_port}" \
+  pnpm --dir "$repo_root/apps/ui" --filter @morecat/viewer build
+
+log 'starting viewer'
+start_process viewer env \
+  MORECAT_API_BASE_URL="http://127.0.0.1:${api_port}" \
+  pnpm --dir "$repo_root/apps/ui" --filter @morecat/viewer start \
+  --hostname 127.0.0.1 --port "$viewer_port"
+viewer_pid=$last_process_id
+wait_for_http \
+  "http://127.0.0.1:${viewer_port}/posts/not-yet-published" \
+  '404' \
+  180 \
+  "$viewer_pid"
 
 slug="local-e2e-${$}"
 cat >"$work_dir/create.json" <<'JSON'
@@ -297,6 +324,31 @@ draft_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
   "http://127.0.0.1:${api_port}/articles/${slug}")"
 assert_status '404' "$draft_status" 'draft visibility'
 
+draft_viewer_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  "http://127.0.0.1:${viewer_port}/posts/${slug}")"
+assert_status '404' "$draft_viewer_status" 'draft viewer visibility'
+
+missing_article_id="${article_id%?}0"
+if [[ "$missing_article_id" == "$article_id" ]]; then
+  missing_article_id="${article_id%?}1"
+fi
+
+log 'rejecting publish for a missing article'
+missing_article_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  --request POST "http://127.0.0.1:${api_port}/articles/${missing_article_id}/publish" \
+  --header "Authorization: Bearer ${bearer_token}" \
+  --header 'Content-Type: application/json' \
+  --data '{"expectedVersion":1}')"
+assert_status '404' "$missing_article_status" 'publish missing article'
+
+log 'rejecting publish with a stale version'
+stale_version_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  --request POST "http://127.0.0.1:${api_port}/articles/${article_id}/publish" \
+  --header "Authorization: Bearer ${bearer_token}" \
+  --header 'Content-Type: application/json' \
+  --data '{"expectedVersion":0}')"
+assert_status '409' "$stale_version_status" 'publish stale version'
+
 log 'publishing article through API'
 publish_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
   --request POST "http://127.0.0.1:${api_port}/articles/${article_id}/publish" \
@@ -319,17 +371,6 @@ for ((attempt = 1; attempt <= 60; attempt += 1)); do
 done
 assert_contains "$work_dir/published.json" '"title":"Local E2E article"' 'published query'
 assert_contains "$work_dir/published.json" '"body":"# Safe body' 'published query'
-
-log 'building viewer'
-MORECAT_API_BASE_URL="http://127.0.0.1:${api_port}" \
-  pnpm --dir "$repo_root/apps/ui" --filter @morecat/viewer build
-
-log 'starting viewer'
-start_process viewer env \
-  MORECAT_API_BASE_URL="http://127.0.0.1:${api_port}" \
-  pnpm --dir "$repo_root/apps/ui" --filter @morecat/viewer start \
-  --hostname 127.0.0.1 --port "$viewer_port"
-viewer_pid=$last_process_id
 wait_for_http "http://127.0.0.1:${viewer_port}/posts/${slug}" '200' 180 "$viewer_pid"
 curl --silent --fail "http://127.0.0.1:${viewer_port}/posts/${slug}" \
   --output "$work_dir/viewer.html"
