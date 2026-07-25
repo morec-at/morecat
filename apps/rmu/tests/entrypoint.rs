@@ -30,7 +30,7 @@ fn rejects_missing_runtime_configuration() {
     assert!(
         String::from_utf8(unknown_command.stderr)
             .unwrap()
-            .contains("usage: morecat-rmu [replay]")
+            .contains("usage: morecat-rmu [replay|bridge]")
     );
 
     let missing = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
@@ -61,6 +61,20 @@ fn rejects_missing_runtime_configuration() {
             .contains("missing GOOGLE_CLOUD_PROJECT")
     );
 
+    let missing_bridge = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
+        .arg("bridge")
+        .env_remove("GOOGLE_CLOUD_PROJECT")
+        .env_remove("DATABASE_URL")
+        .env_remove("PORT")
+        .output()
+        .unwrap();
+    assert!(!missing_bridge.status.success());
+    assert!(
+        String::from_utf8(missing_bridge.stderr)
+            .unwrap()
+            .contains("missing GOOGLE_CLOUD_PROJECT")
+    );
+
     let invalid_replay_database = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
         .arg("replay")
         .env("GOOGLE_CLOUD_PROJECT", "demo-morecat")
@@ -70,6 +84,19 @@ fn rejects_missing_runtime_configuration() {
     assert!(!invalid_replay_database.status.success());
     assert!(
         String::from_utf8(invalid_replay_database.stderr)
+            .unwrap()
+            .contains("failed to connect to Postgres: invalid DATABASE_URL")
+    );
+
+    let invalid_bridge_database = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
+        .arg("bridge")
+        .env("GOOGLE_CLOUD_PROJECT", "demo-morecat")
+        .env("DATABASE_URL", "postgres://user:secret@[invalid/morecat")
+        .output()
+        .unwrap();
+    assert!(!invalid_bridge_database.status.success());
+    assert!(
+        String::from_utf8(invalid_bridge_database.stderr)
             .unwrap()
             .contains("failed to connect to Postgres: invalid DATABASE_URL")
     );
@@ -227,6 +254,48 @@ fn stops_the_live_service_cleanly_on_interrupt_and_termination() {
     feature = "firestore-integration",
     feature = "postgres-integration"
 ))]
+#[test]
+fn stops_the_local_cdc_bridge_cleanly_on_termination() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let container = runtime.block_on(async {
+        Postgres::default()
+            .with_tag("17-alpine")
+            .start()
+            .await
+            .unwrap()
+    });
+    let host = runtime.block_on(container.get_host()).unwrap();
+    let postgres_port = runtime
+        .block_on(container.get_host_port_ipv4(5432))
+        .unwrap();
+    let database_url = format!("postgres://postgres:postgres@{host}:{postgres_port}/postgres");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_morecat-rmu"))
+        .arg("bridge")
+        .env("GOOGLE_CLOUD_PROJECT", "demo-morecat-entrypoint-bridge")
+        .env("DATABASE_URL", database_url)
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let ready = bridge_readiness(child.stdout.take().unwrap());
+    let started = ready.recv_timeout(Duration::from_secs(10)).is_ok();
+    let signal = Command::new("kill")
+        .args(["-TERM", &child.id().to_string()])
+        .status()
+        .unwrap();
+    let status = child.wait().unwrap();
+    runtime.block_on(async move { drop(container) });
+
+    assert!(started, "local CDC bridge did not report readiness");
+    assert!(signal.success());
+    assert!(status.success());
+}
+
+#[cfg(all(
+    unix,
+    feature = "firestore-integration",
+    feature = "postgres-integration"
+))]
 fn readiness_port(stdout: impl std::io::Read + Send + 'static) -> mpsc::Receiver<u16> {
     let (sender, receiver) = mpsc::channel();
     thread::spawn(move || {
@@ -238,6 +307,23 @@ fn readiness_port(stdout: impl std::io::Read + Send + 'static) -> mpsc::Receiver
             .and_then(|port| port.parse().ok())
         {
             sender.send(port).unwrap();
+        }
+    });
+    receiver
+}
+
+#[cfg(all(
+    unix,
+    feature = "firestore-integration",
+    feature = "postgres-integration"
+))]
+fn bridge_readiness(stdout: impl std::io::Read + Send + 'static) -> mpsc::Receiver<()> {
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        let mut line = String::new();
+        BufReader::new(stdout).read_line(&mut line).unwrap();
+        if line.trim() == "Local CDC bridge listening for article events" {
+            sender.send(()).unwrap();
         }
     });
     receiver

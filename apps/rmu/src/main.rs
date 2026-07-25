@@ -12,6 +12,9 @@ async fn main() -> Result<(), String> {
             println!("Replayed {count} article(s)");
             Ok(())
         }
+        morecat_rmu::bootstrap::RmuCommand::Bridge => {
+            morecat_rmu::bootstrap::run_local_bridge(vars, Box::pin(shutdown_signal())).await
+        }
     }
 }
 
