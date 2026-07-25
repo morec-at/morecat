@@ -6,6 +6,7 @@
     "gen:openapi": "cd ../api && sbt -batch -no-colors 'infrastructure/runMain morecat.infrastructure.http.GenerateOpenApi ../ui/openapi.yaml'",
     "gen:api": "pnpm gen:openapi && pnpm --filter @morecat/api-client generate",
     "test": "pnpm --recursive test",
-    "typecheck": "pnpm --recursive typecheck"
+    "typecheck": "pnpm --recursive typecheck",
+    "lint": "pnpm --recursive lint"
   }
 }
