@@ -21,6 +21,7 @@
 - RMU(Rust): `cd apps/rmu` で `cargo build` / `cargo test`。line / region coverage は Docker 起動後、リポジトリルートで `firebase emulators:exec --config apps/api/firebase.json --only firestore --project demo-morecat 'cargo llvm-cov --manifest-path apps/rmu/Cargo.toml --locked --all-features --fail-under-lines 100 --fail-under-regions 100'`（HTML は内側のコマンドに `--html --open` を追加）。`--all-features` は Firestore emulator と Postgres Testcontainers の統合テストを含む。macOS で標準以外の Docker context を使う場合は先に `export DOCKER_HOST="$(docker context inspect --format '{{.Endpoints.docker.Host}}')"` を実行する。Rust stable では LLVM branch coverage が未安定のため region coverage を用いる。
 - UI: `apps/ui` で `pnpm install`、各 app で `pnpm dev` / `pnpm build` / `pnpm test` / `pnpm lint`。
 - 型生成: API の OpenAPI から `packages/api-client` を再生成（`pnpm gen:api`）。
+- ローカル E2E: Docker 起動後にルートで `./apps/e2e/local-e2e.sh`。一時 Postgres / Firestore emulator / API / RMU CDC bridge / viewer を起動し、draft 作成から公開 SSR までを検証する。CI と同じ環境では `nix develop --command ./apps/e2e/local-e2e.sh`。
 - リポジトリ全体のエントリは将来 root の `Makefile`（例 `make dev-api` / `make test-ui`）に集約する。
 
 ## Coding Style & Naming Conventions
@@ -58,6 +59,7 @@
 - `api (Scala) format, compile & test` は required check のため、変更 path にかかわらず全 PR で実行する（未生成の expected check による merge block を避ける）。
 - `rmu (Rust) format, lint, test & coverage` も required check のため、変更 path にかかわらず全 PR で実行する（未生成の expected check による merge block を避ける）。
 - `ui (pnpm generate, test & typecheck)` は生成済み OpenAPI 型の差分、UI テスト、TypeScript 型検査を全 PR で確認する。
+- `local end-to-end` は API・RMU・viewer 間の契約を保つため全 PR で実行する。失敗ログは `local-e2e-failure-logs` artifact に14日間保持する。
 - 全 PR は `.github/workflows/codex-review.yml`（公式 `openai/codex-action`）で **codex の自動レビューが必須実行**され、結果が PR にスティッキーコメントとして残る。
 - レビュー観点: `docs/design.md`・`docs/slice-1-plan.md` との整合 / 正しさ / セキュリティ / スコープ逸脱。
 - 必要な設定: リポジトリ Secret **`OPENAI_API_KEY`**（未設定だと CI は失敗する＝レビューを黙ってスキップしない）。
