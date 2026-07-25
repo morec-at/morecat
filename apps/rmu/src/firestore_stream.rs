@@ -52,7 +52,6 @@ impl GoogleFirestoreEventDocuments {
         .map_err(firestore_error_message)
     }
 
-    #[cfg(all(test, feature = "firestore-integration"))]
     pub(crate) fn database(&self) -> &FirestoreDb {
         &self.db
     }

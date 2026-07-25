@@ -3,6 +3,7 @@ use uuid::Uuid;
 pub mod bootstrap;
 pub mod eventarc;
 pub mod firestore_stream;
+pub mod local_cdc;
 pub mod postgres;
 pub mod processor;
 pub mod projection;

@@ -46,6 +46,22 @@ cargo run --manifest-path apps/rmu/Cargo.toml
 
 終了時は両ターミナルで `Ctrl-C` を入力する。
 
+## Local CDC bridge
+
+Eventarc が利用できないローカル環境では `bridge` command を常駐させる。Firestore emulator の `events` collection group を realtime listener で購読し、変更された `articleId` の全 event stream を通常の RMU と同じ projector で再読込・fold して Postgres を更新する。起動時に既存 document が再通知されても `last_applied_seq` で重複適用を避ける。
+
+Firestore emulator と migration 適用済み Postgres を起動した状態で実行する。
+
+```sh
+# repository root
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
+GOOGLE_CLOUD_PROJECT=demo-morecat \
+DATABASE_URL=postgres://morecat:local-dev-password@127.0.0.1:5432/morecat \
+cargo run --manifest-path apps/rmu/Cargo.toml -- bridge
+```
+
+`Local CDC bridge listening for article events` が表示されたら準備完了。API から draft 作成・publish を行うと Postgres projection が自動更新される。ローカルでは HTTP RMU service と bridge を同時起動する必要はない。`Ctrl-C` で listener の処理中 callback を待って終了する。
+
 ## Manual replay
 
 `replay` command は Firestore の全 `events` subcollection を collection-group query で列挙し、article ID ごとに全 event stream を再読込して Postgres projection を更新する。HTTP listener は起動せず、最初の読み取り・projection エラーで非ゼロ終了する。

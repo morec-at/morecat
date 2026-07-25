@@ -55,3 +55,5 @@ curl -i -X POST http://127.0.0.1:8081/articles \
 ```
 
 成功時は `201 Created` と UUIDv7 の `articleId` を返す。Firestore emulator のデータは <http://127.0.0.1:4000/firestore> で確認できる。終了時は両ターミナルで `Ctrl-C` を入力する。
+
+Firestore の変更をローカル Postgres へ自動投影する場合は、別ターミナルで RMU の `bridge` command を起動する。設定と起動方法は `apps/rmu/README.md` の「Local CDC bridge」を参照する。

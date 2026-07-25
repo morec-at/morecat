@@ -9,6 +9,7 @@ use tokio::net::TcpListener;
 use crate::{
     eventarc::{EventActions, router},
     firestore_stream::{FirestoreEventStreamReader, GoogleFirestoreEventDocuments},
+    local_cdc,
     postgres::{PostgresArticleProjectionStore, PostgresDeadLetterStore},
     processor::RmuEventActions,
     replay::{ArticleReplay, ReplayError},
@@ -25,6 +26,7 @@ pub struct RmuConfig {
 pub enum RmuCommand {
     Serve,
     Replay,
+    Bridge,
 }
 
 impl RmuCommand {
@@ -32,7 +34,8 @@ impl RmuCommand {
         match args.as_slice() {
             [] => Ok(Self::Serve),
             [command] if command == "replay" => Ok(Self::Replay),
-            _ => Err("usage: morecat-rmu [replay]".to_owned()),
+            [command] if command == "bridge" => Ok(Self::Bridge),
+            _ => Err("usage: morecat-rmu [replay|bridge]".to_owned()),
         }
     }
 }
@@ -126,6 +129,21 @@ pub async fn run_replay(vars: Vec<(OsString, OsString)>) -> Result<usize, String
         .map_err(replay_error)
 }
 
+pub async fn run_local_bridge(
+    vars: Vec<(OsString, OsString)>,
+    shutdown: Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+) -> Result<(), String> {
+    let config = RmuConfig::from_vars(vars)?;
+    let (documents, pool) = connect_live_dependencies(&config).await?;
+    let projector: Arc<dyn crate::replay::ArticleProjector> = Arc::new(RmuEventActions::new(
+        Arc::new(FirestoreEventStreamReader::new(documents.clone())),
+        Arc::new(PostgresArticleProjectionStore::new(pool.clone())),
+        Arc::new(PostgresDeadLetterStore::new(pool)),
+    ));
+
+    local_cdc::run_bridge(documents.database(), projector, shutdown).await
+}
+
 async fn connect_live_dependencies(
     config: &RmuConfig,
 ) -> Result<(GoogleFirestoreEventDocuments, sqlx::PgPool), String> {
@@ -206,8 +224,12 @@ mod tests {
             Ok(RmuCommand::Replay)
         );
         assert_eq!(
+            RmuCommand::from_args(vec!["bridge".into()]),
+            Ok(RmuCommand::Bridge)
+        );
+        assert_eq!(
             RmuCommand::from_args(vec!["unknown".into()]),
-            Err("usage: morecat-rmu [replay]".to_owned())
+            Err("usage: morecat-rmu [replay|bridge]".to_owned())
         );
     }
 
@@ -519,6 +541,47 @@ mod integration_tests {
         .await
         .unwrap();
 
+        assert_eq!(row, ("draft".to_owned(), "hello-world".to_owned(), 1));
+    }
+
+    #[tokio::test]
+    async fn bridges_firestore_changes_into_postgres() {
+        let (_container, pool, database_url) = migrated_postgres().await;
+        let project_id = "demo-morecat-bridge";
+        let observer = pool.clone();
+
+        let result = run_local_bridge(
+            vec![
+                ("GOOGLE_CLOUD_PROJECT".into(), project_id.into()),
+                ("DATABASE_URL".into(), database_url.into()),
+            ],
+            Box::pin(async move {
+                seed_replay_event(project_id).await;
+                for _ in 0..100 {
+                    let projected = sqlx::query_scalar::<_, i64>(
+                        "SELECT COUNT(*) FROM articles WHERE article_id = $1",
+                    )
+                    .bind(ARTICLE_ID)
+                    .fetch_one(&observer)
+                    .await
+                    .unwrap();
+                    if projected == 1 {
+                        return;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                }
+            }),
+        )
+        .await;
+
+        let row: (String, String, i64) = sqlx::query_as(
+            "SELECT status, slug, last_applied_seq FROM articles WHERE article_id = $1",
+        )
+        .bind(ARTICLE_ID)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(result, Ok(()));
         assert_eq!(row, ("draft".to_owned(), "hello-world".to_owned(), 1));
     }
 
