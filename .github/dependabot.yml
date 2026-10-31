@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /apps/ui
+    schedule:
+      interval: daily
+      timezone: Asia/Tokyo
+    # pnpm 11 の minimumReleaseAge（24時間）に合わせる。
+    # セキュリティ更新には適用されない。
+    cooldown:
+      default-days: 1
