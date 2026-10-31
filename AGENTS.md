@@ -61,6 +61,7 @@
 - `ui (pnpm generate, test & typecheck)` は生成済み OpenAPI 型の差分、UI テスト、TypeScript 型検査を全 PR で確認する。
 - `local end-to-end` は API・RMU・viewer 間の契約を保つため全 PR で実行する。失敗ログは `local-e2e-failure-logs` artifact に14日間保持する。
 - 全 PR は `.github/workflows/codex-review.yml`（公式 `openai/codex-action`）で **codex の自動レビューが必須実行**され、結果が PR にスティッキーコメントとして残る。
+- Dependabot PR のレビュー実行は `allow-bot-users: 'dependabot[bot]'` で明示的に許可する。
 - レビュー観点: `docs/design.md`・`docs/slice-1-plan.md` との整合 / 正しさ / セキュリティ / スコープ逸脱。
 - 必要な設定: リポジトリ Secret **`OPENAI_API_KEY`**（未設定だと CI は失敗する＝レビューを黙ってスキップしない）。
 - ジョブは review（`contents:read` で codex 実行）と post（`pull-requests:write` でコメント投稿）に分離し、codex 実行中は PR 書込権限を渡さない。

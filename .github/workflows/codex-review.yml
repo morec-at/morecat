@@ -42,6 +42,7 @@ jobs:
       - name: Run codex review
         uses: openai/codex-action@e0fdf01220eb9a88167c4898839d273e3f2609d1 # v1.8
         with:
+          allow-bot-users: 'dependabot[bot]'
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           model: gpt-5.4-mini
           sandbox: read-only
