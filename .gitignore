@@ -33,3 +33,14 @@ result-*
 
 # Local/CI test artifacts
 /.artifacts/
+
+# Terraform (provider lock file is committed)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+/infra/*.tfvars
+/infra/*.tfvars.json
+/infra/cloud.tf

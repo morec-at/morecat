@@ -1,9 +1,14 @@
 # Repository Guidelines
 
+## 本番インフラの実行基盤
+- Terraform の state 管理・plan / apply は **HCP Terraform** を使用する（org は作成済み）。詳細は `docs/production-deployment-plan.md`。
+- インフラ apply の承認は HCP Terraform、アプリ deploy の承認は GitHub protected environment で管理する。
+- HCP Terraform → GCP は Dynamic Provider Credentials（OIDC / WIF）を使用し、GitHub Actions の WIF と分離する。静的サービスアカウントキーは使用しない。
+
 設計の全体像は `docs/design.md`、構成図は `docs/architecture.html` を参照。本ファイルは貢献者 / エージェント向けの作業ガイド。
 
 ## Project Structure & Module Organization
-モノレポ。コードは `apps/` 配下に集約（リポジトリ直下は `docs/` と meta のみ）。Scala バックエンドは **単一 sbt ビルド**（ビルドルート=`apps/api`、`apps/api/build.sbt` + `apps/api/project/`）、UI は **pnpm workspace**。dev 環境はルートの `flake.nix`（`nix develop`）。
+モノレポ。アプリコードは `apps/`、Terraform は直下の `infra/` に配置。Scala バックエンドは **単一 sbt ビルド**（ビルドルート=`apps/api`、`apps/api/build.sbt` + `apps/api/project/`）、UI は **pnpm workspace**。dev 環境はルートの `flake.nix`（`nix develop`）。
 
 - `apps/api` — JVM デプロイ単位（Cloud Run）。sbt ビルドルート。tapir HTTP サーバ。サブプロジェクト: `domain`（純粋: Article イベント ADT・値オブジェクト(Iron)。IO や wire フォーマットを持たない。投影 fold は RMU、コマンド側集約ロードは今後）/ `application`（ユースケース）/ `infrastructure`（Firestore JVM SDK・Postgres・GCS・tapir・**JSON codec**）/ `bootstrap`。
 - `apps/rmu` — **Rust** デプロイ単位（Cloud Run, Cargo）。Eventarc 起動の Read Model Updater。axum + serde + sqlx + Firestore クレート。ドメインは API と**コード共有せず**、イベント wire スキーマを契約フィクスチャで整合。
@@ -12,10 +17,12 @@
 - `apps/ui/packages/api-client` — OpenAPI から生成した型 / クライアント（viewer・editor で共有）。
 - `apps/ui/cui` — v1 ではドロップ（プレースホルダ維持）。
 - `docs/` — 設計・図。
+- `infra/` — HCP Terraform workspace と GCP リソースを単一 root module・単一 state で管理。初回はローカル実行後、同じ state を HCP Terraform へ移行する。
 
 `.gitkeep` は実体が入った時点で削除し、各 app に責務を説明する README を置く。
 
 ## Build, Test, and Development Commands
+- インフラ: `nix develop .#infra`。`terraform -chdir=infra init -backend=false` / `fmt -check -recursive` / `validate` / `test`（各 subcommand の前に `terraform -chdir=infra`）。初回 workspace 作成と state 移行は `infra/README.md` を参照。
 - 開発環境: ルートで `nix develop`（flake で JDK 25 / sbt / Node / Rust を固定。Scala 3.8 系は JDK 17+ 必須なので JDK は nix で揃える）。以降のコマンドは dev shell 内で実行する。
 - API(Scala): sbt ビルドルートは `apps/api`。`cd apps/api` してから `sbt compile` / `sbt test`。集約カバレッジ取得は `sbt clean` 後、Firestore エミュレータ内で `firebase emulators:exec --only firestore --project demo-morecat 'sbt -batch -no-colors coverage domain/test application/test infrastructure/test bootstrap/test "infrastructure / FirestoreIntegration / test" "infrastructure / PostgresIntegration / test" coverageAggregate'`（HTML は `target/scala-*/scoverage-report/`）。純粋ドメインだけは `sbt domain/test`。Firestore 統合テストだけなら `firebase emulators:exec --only firestore --project demo-morecat 'sbt -batch -no-colors "infrastructure / FirestoreIntegration / test"'`、Postgres 統合テストだけなら Docker 起動中に `sbt "infrastructure / PostgresIntegration / test"`。サーバ起動の環境変数と手順は `apps/api/bootstrap/README.md` を参照。
 - RMU(Rust): `cd apps/rmu` で `cargo build` / `cargo test`。line / region coverage は Docker 起動後、リポジトリルートで `firebase emulators:exec --config apps/api/firebase.json --only firestore --project demo-morecat 'cargo llvm-cov --manifest-path apps/rmu/Cargo.toml --locked --all-features --fail-under-lines 100 --fail-under-regions 100'`（HTML は内側のコマンドに `--html --open` を追加）。`--all-features` は Firestore emulator と Postgres Testcontainers の統合テストを含む。macOS で標準以外の Docker context を使う場合は先に `export DOCKER_HOST="$(docker context inspect --format '{{.Endpoints.docker.Host}}')"` を実行する。Rust stable では LLVM branch coverage が未安定のため region coverage を用いる。
