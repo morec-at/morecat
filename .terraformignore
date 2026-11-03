@@ -1,0 +1,15 @@
+# Remote CLI runs need only the infrastructure root module.
+*
+!infra/
+!infra/**
+
+# Local credentials/configuration and generated artifacts stay local.
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/*.tfplan
+infra/*.tfvars
+infra/*.tfvars.json
+infra/cloud.tf
+infra/crash.log
+infra/crash.*.log
