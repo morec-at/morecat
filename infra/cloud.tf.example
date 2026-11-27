@@ -1,9 +1,0 @@
-# Copy to cloud.tf only AFTER creating the workspace with local state.
-terraform {
-  cloud {
-    organization = "emag-org"
-    workspaces {
-      name = "morecat-prod"
-    }
-  }
-}

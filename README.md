@@ -1,4 +1,0 @@
-# morecat
-
-A personal CMS
-
